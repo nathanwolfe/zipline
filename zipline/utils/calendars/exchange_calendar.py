@@ -503,6 +503,13 @@ class ExchangeCalendar(with_metaclass(ABCMeta)):
 
         return self.all_trading_minutes[start_idx:end_idx]
 
+    # FIXME test this method
+    def exchange_minutes_for_periods_in_range(self, start_period, end_period):
+        first_minute, _ = self.open_and_close(start_period)
+        _, last_minute = self.open_and_close(end_period)
+
+        return self.exchange_minutes_in_range(first_minute, last_minute)
+
     def open_and_close(self, period):
         """
         Returns a tuple of timestamps of the open and close of the given
