@@ -175,22 +175,3 @@ class NYSEExchangeCalendar(ExchangeCalendar):
                                      '2003-12-26',
                                      '2013-07-03')),
     ]
-
-
-    def is_open_on_day(self, dt):
-        """
-        Is the exchange open (accepting orders) anytime during the calendar day
-        containing @dt.
-
-        Parameters
-        ----------
-        dt : Timestamp
-
-        Returns
-        -------
-        bool
-            True if  exchange is open at any time during the day containing @dt
-        """
-        import pdb; pdb.set_trace()
-        dt_normalized = normalize_date(dt)
-        return dt_normalized in self.schedule.index
