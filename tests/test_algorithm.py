@@ -739,7 +739,10 @@ class TestTransformAlgorithm(WithLogger,
 
     @classmethod
     def make_futures_info(cls):
-        return pd.DataFrame.from_dict({3: {'multiplier': 10}}, 'index')
+        return pd.DataFrame.from_dict(
+            {3: {'multiplier': 10, 'symbol': 'F'}},
+            orient='index',
+        )
 
     @classmethod
     def make_daily_bar_data(cls):
@@ -946,6 +949,7 @@ def before_trading_start(context, data):
             'start_date': period_start,
             'end_date': period_end + timedelta(days=1)
         }] * 2)
+        equities['symbol'] = ['A', 'B']
         with TempDirectory() as tempdir, \
                 tmp_trading_env(equities=equities) as env:
             sim_params = SimulationParameters(
@@ -2712,6 +2716,7 @@ class TestTradingControls(WithSimParams, WithDataPortal, ZiplineTestCase):
         metadata = pd.DataFrame.from_dict(
             {
                 1: {
+                    'symbol': 'SYM',
                     'start_date': start,
                     'end_date': start + timedelta(days=6)
                 },
@@ -2839,6 +2844,7 @@ class TestTradingControls(WithSimParams, WithDataPortal, ZiplineTestCase):
 
     def test_asset_date_bounds(self):
         metadata = pd.DataFrame([{
+            'symbol': 'SYM',
             'start_date': self.sim_params.period_start,
             'end_date': '2020-01-01',
         }])
@@ -2858,6 +2864,7 @@ class TestTradingControls(WithSimParams, WithDataPortal, ZiplineTestCase):
             algo.run(data_portal)
 
         metadata = pd.DataFrame([{
+            'symbol': 'SYM',
             'start_date': '1989-01-01',
             'end_date': '1990-01-01',
         }])
@@ -2878,6 +2885,7 @@ class TestTradingControls(WithSimParams, WithDataPortal, ZiplineTestCase):
                 algo.run(data_portal)
 
         metadata = pd.DataFrame([{
+            'symbol': 'SYM',
             'start_date': '2020-01-01',
             'end_date': '2021-01-01',
         }])
