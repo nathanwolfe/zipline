@@ -16,21 +16,17 @@ from abc import (
     ABCMeta,
     abstractproperty,
 )
-
 import pandas as pd
 import numpy as np
-from dateutil.relativedelta import MO, TH
 from pandas import (
     DataFrame,
     date_range,
     DateOffset,
     DatetimeIndex,
 )
-from pandas.tseries.holiday import Holiday, nearest_workday, sunday_to_monday
-from pandas.tseries.offsets import CustomBusinessDay, Day
+from pandas.tseries.offsets import CustomBusinessDay
 from pandas.tslib import Timestamp
 from six import with_metaclass
-
 from zipline.errors import (
     InvalidCalendarName,
     CalendarNameCollision,
@@ -40,7 +36,6 @@ from zipline.utils.calendars._calendar_helpers import (
     previous_divider_idx,
     is_open
 )
-
 from zipline.utils.memoize import remember_last
 from numpy import searchsorted
 
@@ -51,102 +46,6 @@ end_base = pd.Timestamp('today', tz='UTC')
 end_default = end_base + pd.Timedelta(days=365)
 
 NANOS_IN_MINUTE = 60000000000
-
-MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY, SATURDAY, SUNDAY = range(7)
-
-USNewYearsDay = Holiday(
-    'New Years Day',
-    month=1,
-    day=1,
-    # When Jan 1 is a Sunday, US markets observe the subsequent Monday.
-    # When Jan 1 is a Saturday (as in 2005 and 2011), no holiday is observed.
-    observance=sunday_to_monday
-)
-USMartinLutherKingJrAfter1998 = Holiday(
-    'Dr. Martin Luther King Jr. Day',
-    month=1,
-    day=1,
-    # The US markets didn't observe MLK day as a holiday until 1998.
-    start_date=Timestamp('1998-01-01'),
-    offset=DateOffset(weekday=MO(3)),
-)
-USMemorialDay = Holiday(
-    # NOTE: The definition for Memorial Day is incorrect as of pandas 0.16.0.
-    # See https://github.com/pydata/pandas/issues/9760.
-    'Memorial Day',
-    month=5,
-    day=25,
-    offset=DateOffset(weekday=MO(1)),
-)
-USIndependenceDay = Holiday(
-    'July 4th',
-    month=7,
-    day=4,
-    observance=nearest_workday,
-)
-Christmas = Holiday(
-    'Christmas',
-    month=12,
-    day=25,
-    observance=nearest_workday,
-)
-
-MonTuesThursBeforeIndependenceDay = Holiday(
-    # When July 4th is a Tuesday, Wednesday, or Friday, the previous day is a
-    # half day.
-    'Mondays, Tuesdays, and Thursdays Before Independence Day',
-    month=7,
-    day=3,
-    days_of_week=(MONDAY, TUESDAY, THURSDAY),
-    start_date=Timestamp("1995-01-01"),
-)
-FridayAfterIndependenceDayExcept2013 = Holiday(
-    # When July 4th is a Thursday, the next day is a half day (except in 2013,
-    # when, for no explicable reason, Wednesday was a half day instead).
-    "Fridays after Independence Day that aren't in 2013",
-    month=7,
-    day=5,
-    days_of_week=(FRIDAY,),
-    observance=lambda dt: None if dt.year == 2013 else dt,
-    start_date=Timestamp("1995-01-01"),
-)
-USBlackFridayBefore1993 = Holiday(
-    'Black Friday',
-    month=11,
-    day=1,
-    # Black Friday was not observed until 1992.
-    start_date=Timestamp('1992-01-01'),
-    end_date=Timestamp('1993-01-01'),
-    offset=[DateOffset(weekday=TH(4)), Day(1)],
-)
-USBlackFridayInOrAfter1993 = Holiday(
-    'Black Friday',
-    month=11,
-    day=1,
-    start_date=Timestamp('1993-01-01'),
-    offset=[DateOffset(weekday=TH(4)), Day(1)],
-)
-
-
-# http://en.wikipedia.org/wiki/Aftermath_of_the_September_11_attacks
-September11Closings = date_range('2001-09-11', '2001-09-16', tz='UTC')
-
-# http://en.wikipedia.org/wiki/Hurricane_sandy
-HurricaneSandyClosings = date_range(
-    '2012-10-29',
-    '2012-10-30',
-    tz='UTC'
-)
-
-# National Days of Mourning
-# - President Richard Nixon - April 27, 1994
-# - President Ronald W. Reagan - June 11, 2004
-# - President Gerald R. Ford - Jan 2, 2007
-USNationalDaysofMourning = [
-    Timestamp('1994-04-27', tz='UTC'),
-    Timestamp('2004-06-11', tz='UTC'),
-    Timestamp('2007-01-02', tz='UTC'),
-]
 
 
 def days_at_time(days, t, tz, day_offset=0):
@@ -221,6 +120,18 @@ def _overwrite_special_dates(midnight_utcs,
     opens_or_closes.values[indexer] = special_opens_or_closes.values
 
 
+# class EC(baseclass):
+#     next_open = baseclass._next_open
+#
+# class TS(baseclass):
+#     next_Execution_open = baseclass._next_open
+#
+# class QuantoCombinedTS(TS):
+#     start=6
+#     end=6
+#     b_t_s=8:45
+
+
 class ExchangeCalendar(with_metaclass(ABCMeta)):
     """
     An ExchangeCalendar represents the timing information of a single market
@@ -230,7 +141,9 @@ class ExchangeCalendar(with_metaclass(ABCMeta)):
 
     A period represents a contiguous set of minutes, like "May 18".
     Importantly, a period is a chunk of time, instead of a specific point in
-    time.  Periods cannot overlap with each other.
+    time. Periods cannot overlap with each other.
+
+    For each period, we store the open and close time in UTC time.
     """
 
     def __init__(self, start=start_default, end=end_default):
@@ -275,13 +188,13 @@ class ExchangeCalendar(with_metaclass(ABCMeta)):
         )
 
         self.market_opens_nanos = self.schedule.market_open.values.\
-            astype('datetime64[ns]').astype(np.int64)
+            astype(np.int64)
 
         self.market_closes_nanos = self.schedule.market_close.values.\
-            astype('datetime64[ns]').astype(np.int64)
+            astype(np.int64)
 
         self._trading_minutes_nanos = self.all_trading_minutes.values.\
-            astype('datetime64[ns]').astype(np.int64)
+            astype(np.int64)
 
         self.first_trading_day = _all_days[0]
         self.last_trading_day = _all_days[-1]
@@ -433,7 +346,7 @@ class ExchangeCalendar(with_metaclass(ABCMeta)):
             the previous period.
 
             "none" means that a KeyError will be raised if the given
-            dt is not part of an session.
+            dt is not part of a period.
 
         Returns
         -------
@@ -615,11 +528,27 @@ class ExchangeCalendar(with_metaclass(ABCMeta)):
 
     @property
     def all_periods(self):
+        """
+        Returns a PeriodIndex representing all the periods in this calendar.
+        """
         return self.schedule.index
 
     @property
     @remember_last
+    def all_trading_days(self):
+        """
+        Returns a DatetimeIndex representing all the periods in this calendar
+        (using midnight UTC).  This exists for backwards compatibility and will
+        be removed soon.
+        """
+        return self.all_periods.to_timestamp().tz_localize('utc')
+
+    @property
+    @remember_last
     def all_trading_minutes(self):
+        """
+        Returns a DatetimeIndex representing all the minutes in this calendar.
+        """
         opens_in_ns = \
             self._opens.values.astype('datetime64[ns]').astype(np.int64)
 
@@ -633,8 +562,7 @@ class ExchangeCalendar(with_metaclass(ABCMeta)):
         num_minutes = np.sum(daily_sizes).astype(np.int64)
 
         # One allocation for the entire thing. This assumes that each day
-        # represents a contiguous block of minutes, which might not always
-        # be the case in the future.
+        # represents a contiguous block of minutes.
         all_minutes = np.empty(num_minutes, dtype='datetime64[ns]')
 
         idx = 0
@@ -653,13 +581,8 @@ class ExchangeCalendar(with_metaclass(ABCMeta)):
 
     def _special_dates(self, calendars, ad_hoc_dates, start_date, end_date):
         """
-        Union an iterable of pairs of the form
-
-        (time, calendar)
-
-        and an iterable of pairs of the form
-
-        (time, [dates])
+        Union an iterable of pairs of the form (time, calendar)
+        and an iterable of pairs of the form (time, [dates])
 
         (This is shared logic for computing special opens and special closes.)
         """
@@ -691,31 +614,6 @@ class ExchangeCalendar(with_metaclass(ABCMeta)):
             end,
         )
 
-    @abstractproperty
-    def name(self):
-        """
-        The name of this exchange calendar.
-        E.g.: 'NYSE', 'LSE', 'CME Energy'
-        """
-        raise NotImplementedError()
-
-    @abstractproperty
-    def tz(self):
-        """
-        The native timezone of the exchange.
-
-        SD: Not clear that this needs to be exposed.
-        """
-        raise NotImplementedError()
-
-    def _open_and_close_idx(self, dt):
-        open_idx = self.schedule.market_open.values.\
-            astype('datetime64[ns]').searchsorted(np.datetime64(dt))
-        close_idx = self.schedule.market_close.values.\
-            astype('datetime64[ns]').searchsorted(np.datetime64(dt))
-
-        return open_idx, close_idx
-
 
 _static_calendars = {}
 
@@ -728,6 +626,11 @@ def get_calendar(name):
     ----------
     name : str
         The name of the ExchangeCalendar to be retrieved.
+
+    Returns
+    -------
+    ExchangeCalendar
+        The desired calendar.
     """
     # First, check if the calendar is already registered
     if name not in _static_calendars:

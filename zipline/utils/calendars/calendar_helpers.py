@@ -20,6 +20,8 @@ import bisect
 from zipline.errors import NoFurtherDataError
 
 
+MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY, SATURDAY, SUNDAY = range(7)
+
 def normalize_date(date):
     date = pd.Timestamp(date, tz='UTC')
     return pd.tseries.tools.normalize_date(date)

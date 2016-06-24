@@ -16,24 +16,18 @@
 from datetime import time
 from itertools import chain
 
-from pandas import Timestamp
-
 from pandas.tseries.holiday import(
     AbstractHolidayCalendar,
     GoodFriday,
-    Holiday,
     USLaborDay,
     USPresidentsDay,
     USThanksgivingDay,
 )
 from pytz import timezone
 
-from .exchange_calendar import (
-    ExchangeCalendar,
-    MONDAY,
-    TUESDAY,
-    WEDNESDAY,
-    THURSDAY,
+from .exchange_calendar import ExchangeCalendar
+
+from .us_holidays import (
     USNewYearsDay,
     USMartinLutherKingJrAfter1998,
     USMemorialDay,
@@ -46,9 +40,8 @@ from .exchange_calendar import (
     September11Closings,
     HurricaneSandyClosings,
     USNationalDaysofMourning,
-)
-
-from .calendar_helpers import normalize_date
+    ChristmasEveBefore1993,
+    ChristmasEveInOrAfter1993)
 
 # Useful resources for making changes to this file:
 # http://www.nyse.com/pdfs/closings.pdf
@@ -63,25 +56,6 @@ NYSE_STANDARD_EARLY_CLOSE = time(13)
 # calendar day assigned by the exchange to this session.
 NYSE_OPEN_OFFSET = 0
 NYSE_CLOSE_OFFSET = 0
-
-# These have the same definition, but are used in different places because the
-# NYSE closed at 2:00 PM on Christmas Eve until 1993.
-ChristmasEveBefore1993 = Holiday(
-    'Christmas Eve',
-    month=12,
-    day=24,
-    end_date=Timestamp('1993-01-01'),
-    # When Christmas is a Saturday, the 24th is a full holiday.
-    days_of_week=(MONDAY, TUESDAY, WEDNESDAY, THURSDAY),
-)
-ChristmasEveInOrAfter1993 = Holiday(
-    'Christmas Eve',
-    month=12,
-    day=24,
-    start_date=Timestamp('1993-01-01'),
-    # When Christmas is a Saturday, the 24th is a full holiday.
-    days_of_week=(MONDAY, TUESDAY, WEDNESDAY, THURSDAY),
-)
 
 
 class NYSEHolidayCalendar(AbstractHolidayCalendar):
@@ -174,6 +148,8 @@ class NYSEExchangeCalendar(ExchangeCalendar):
     we've done alright...and we should check if it's a half day.
     """
 
+    name = "NYSE"
+    tz = US_EASTERN
     open_time = NYSE_OPEN
     close_time = NYSE_CLOSE
     open_offset = NYSE_OPEN_OFFSET
@@ -200,13 +176,6 @@ class NYSEExchangeCalendar(ExchangeCalendar):
                                      '2013-07-03')),
     ]
 
-    @property
-    def name(self):
-        return 'NYSE'
-
-    @property
-    def tz(self):
-        return US_EASTERN
 
     def is_open_on_day(self, dt):
         """

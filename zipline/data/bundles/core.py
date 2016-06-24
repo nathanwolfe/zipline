@@ -32,10 +32,7 @@ from zipline.utils.preprocess import preprocess
 from zipline.utils.calendars import get_calendar
 
 nyse_cal = get_calendar('NYSE')
-
-# FIXME this is probably not ideal
-exchange_sessions = nyse_cal.all_periods.to_timestamp().tz_localize('UTC')
-
+trading_days = nyse_cal.all_trading_days
 open_and_closes = nyse_cal.schedule
 
 
@@ -193,7 +190,7 @@ def _make_bundle_core():
     @curry
     def register(name,
                  f,
-                 calendar=exchange_sessions,
+                 calendar=trading_days,
                  opens=open_and_closes['market_open'],
                  closes=open_and_closes['market_close'],
                  minutes_per_day=390,

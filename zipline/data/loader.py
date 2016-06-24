@@ -47,7 +47,7 @@ ONE_HOUR = pd.Timedelta(hours=1)
 
 nyse_cal = get_calendar('NYSE')
 trading_day_nyse = nyse_cal.day
-trading_periods_nyse = nyse_cal.all_periods
+trading_days_nyse = nyse_cal.all_trading_days
 
 
 def last_modified_time(path):
@@ -96,7 +96,7 @@ def has_data_for_dates(series_or_df, first_date, last_date):
 
 
 def load_market_data(trading_day=trading_day_nyse,
-                     trading_periods=trading_periods_nyse,
+                     trading_days=trading_days_nyse,
                      bm_symbol='^GSPC'):
     """
     Load benchmark returns and treasury yield curves for the given calendar and
@@ -116,10 +116,9 @@ def load_market_data(trading_day=trading_day_nyse,
     trading_day : pandas.CustomBusinessDay, optional
         A trading_day used to determine the latest day for which we
         expect to have data.  Defaults to an NYSE trading day.
-    trading_sessions : pd.PeriodIndex, optional
-        All the trading periods for the calendar.  Also used for determining
-        what cached dates we should expect to have cached. Defaults to the
-        NYSE calendar.
+    trading_days : pd.DatetimeIndex, optional
+        A calendar of trading days.  Also used for determining what cached
+        dates we should expect to have cached. Defaults to the NYSE calendar.
     bm_symbol : str, optional
         Symbol for the benchmark index to load.  Defaults to '^GSPC', the Yahoo
         ticker for the S&P 500.
@@ -137,7 +136,7 @@ def load_market_data(trading_day=trading_day_nyse,
     '1month', '3month', '6month',
     '1year','2year','3year','5year','7year','10year','20year','30year'
     """
-    first_day = trading_periods[0].to_timestamp(tz='UTC')
+    first_date = trading_days[0]
     now = pd.Timestamp.utcnow()
 
     # We expect to have benchmark and treasury data that's current up until
@@ -154,14 +153,12 @@ def load_market_data(trading_day=trading_day_nyse,
 
     # We'll attempt to download new data if the latest entry in our cache is
     # before this date.
-    last_day = trading_periods[
-        trading_periods.get_loc(now, method='ffill') - 2
-    ].to_timestamp(tz='UTC')
+    last_date = trading_days[trading_days.get_loc(now, method='ffill') - 2]
 
     br = ensure_benchmark_data(
         bm_symbol,
-        first_day,
-        last_day,
+        first_date,
+        last_date,
         now,
         # We need the trading_day to figure out the close prior to the first
         # date so that we can compute returns for the first date.
@@ -169,12 +166,12 @@ def load_market_data(trading_day=trading_day_nyse,
     )
     tc = ensure_treasury_data(
         bm_symbol,
-        first_day,
-        last_day,
+        first_date,
+        last_date,
         now,
     )
-    benchmark_returns = br[br.index.slice_indexer(first_day, last_day)]
-    treasury_curves = tc[tc.index.slice_indexer(first_day, last_day)]
+    benchmark_returns = br[br.index.slice_indexer(first_date, last_date)]
+    treasury_curves = tc[tc.index.slice_indexer(first_date, last_date)]
     return benchmark_returns, treasury_curves
 
 
