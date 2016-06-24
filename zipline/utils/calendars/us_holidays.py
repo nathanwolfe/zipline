@@ -114,8 +114,8 @@ USBlackFridayInOrAfter1993 = Holiday(
     start_date=Timestamp('1993-01-01'),
     offset=[DateOffset(weekday=TH(4)), Day(1)],
 )
-BattleOfGettysburgOutage = Holiday(
-    # All of the floor-traders in Chicago were sent to PA
+BattleOfGettysburg = Holiday(
+    # All of the floor traders in Chicago were sent to PA
     'Markets were closed during the battle of Gettysburg',
     month=7,
     day=(1, 2, 3),

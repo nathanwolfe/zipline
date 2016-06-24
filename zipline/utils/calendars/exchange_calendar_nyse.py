@@ -41,7 +41,8 @@ from .us_holidays import (
     HurricaneSandyClosings,
     USNationalDaysofMourning,
     ChristmasEveBefore1993,
-    ChristmasEveInOrAfter1993)
+    ChristmasEveInOrAfter1993,
+)
 
 # Useful resources for making changes to this file:
 # http://www.nyse.com/pdfs/closings.pdf

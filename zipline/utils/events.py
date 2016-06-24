@@ -396,7 +396,7 @@ class NotHalfDay(StatelessRule):
     """
     def should_trigger(self, dt):
         return self.cal.session_date(dt, direction="none") \
-               not in self.cal.early_closes
+            not in self.cal.early_closes
 
 
 class TradingDayOfWeekRule(six.with_metaclass(ABCMeta, StatelessRule)):

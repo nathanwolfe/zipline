@@ -23,10 +23,8 @@ from collections import namedtuple
 
 import numpy as np
 import pandas as pd
-import pytz
 from pandas import (
     read_csv,
-    datetime,
     Timestamp,
 )
 from pandas.util.testing import assert_frame_equal
@@ -151,8 +149,8 @@ class ExchangeCalendarTestBase(object):
             self.assertFalse(self.calendar.is_open_on_minute(post_market))
 
     def _verify_minute(self, calendar, minute,
-                      next_open_answer, prev_open_answer,
-                      next_close_answer, prev_close_answer):
+                       next_open_answer, prev_open_answer,
+                       next_close_answer, prev_close_answer):
         self.assertEqual(
             calendar.next_open(minute),
             next_open_answer
@@ -199,36 +197,40 @@ class ExchangeCalendarTestBase(object):
             next_close = self.answers.iloc[idx + 2].market_close
 
             # minute before open
-            self._verify_minute(self.calendar, minute_before_open,
-                open_minute, previous_open,
+            self._verify_minute(
+                self.calendar, minute_before_open, open_minute, previous_open,
                 close_minute, previous_close
             )
 
             # open minute
-            self._verify_minute(self.calendar, open_minute,
-                next_open, previous_open,
+            self._verify_minute(
+                self.calendar, open_minute, next_open, previous_open,
                 close_minute, previous_close
             )
 
             # second minute of session
-            self._verify_minute(self.calendar, open_minute + self.one_minute,
-                               next_open, open_minute,
-                               close_minute, previous_close)
+            self._verify_minute(
+                self.calendar, open_minute + self.one_minute, next_open,
+                open_minute, close_minute, previous_close
+            )
 
             # minute before the close
-            self._verify_minute(self.calendar, close_minute - self.one_minute,
-                               next_open, open_minute,
-                               close_minute, previous_close)
+            self._verify_minute(
+                self.calendar, close_minute - self.one_minute, next_open,
+                open_minute, close_minute, previous_close
+            )
 
             # the close
-            self._verify_minute(self.calendar, close_minute,
-                               next_open, open_minute,
-                               next_close, previous_close)
+            self._verify_minute(
+                self.calendar, close_minute, next_open, open_minute,
+                next_close, previous_close
+            )
 
             # minute after the close
-            self._verify_minute(self.calendar, close_minute + self.one_minute,
-                               next_open, open_minute,
-                               next_close, close_minute)
+            self._verify_minute(
+                self.calendar, close_minute + self.one_minute, next_open,
+                open_minute, next_close, close_minute
+            )
 
     def test_next_prev_exchange_minute(self):
         all_minutes = self.calendar.all_trading_minutes

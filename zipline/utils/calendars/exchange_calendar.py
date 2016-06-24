@@ -12,10 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from abc import (
-    ABCMeta,
-    abstractproperty,
-)
+from abc import ABCMeta
 import pandas as pd
 import numpy as np
 from pandas import (
@@ -25,7 +22,6 @@ from pandas import (
     DatetimeIndex,
 )
 from pandas.tseries.offsets import CustomBusinessDay
-from pandas.tslib import Timestamp
 from six import with_metaclass
 from zipline.errors import (
     InvalidCalendarName,
@@ -369,7 +365,8 @@ class ExchangeCalendar(with_metaclass(ABCMeta)):
                 raise ValueError("The given dt is not an exchange minute!")
         elif direction != "next":
             # invalid direction
-            raise ValueError("Invalid direction parameter: {0}".format(direction))
+            raise ValueError("Invalid direction parameter: "
+                             "{0}".format(direction))
 
         return current_or_next_session
 
