@@ -1,5 +1,5 @@
 #
-# Copyright 2015 Quantopian, Inc.
+# Copyright 2016 Quantopian, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -124,6 +124,9 @@ class SimulationParameters(object):
                  emission_rate='daily',
                  data_frequency='daily',
                  arena='backtest'):
+
+        assert type(period_start) == pd.Timestamp
+        assert type(period_end) == pd.Timestamp
 
         assert trading_calendar is not None, \
             "Must pass in trading calendar!"

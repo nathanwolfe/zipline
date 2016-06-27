@@ -1,5 +1,5 @@
 #
-# Copyright 2014 Quantopian, Inc.
+# Copyright 2016 Quantopian, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -319,9 +319,10 @@ class AfterOpen(StatelessRule):
 
     def calculate_dates(self, dt):
         # given a dt, find that day's open and period end (open + offset)
-        self._period_start, self._period_close = self.cal.open_and_close(
-            self.cal.to_exchange_period(dt, direction="none")
-        )
+        self._period_start, self._period_close = \
+            self.cal.open_and_close_for_session(
+                self.cal.minute_to_session_label(dt, direction="none")
+            )
         self._period_end = self._period_start + self.offset - self._one_minute
 
     def should_trigger(self, dt):
@@ -367,7 +368,9 @@ class BeforeClose(StatelessRule):
     def calculate_dates(self, dt):
         # given a dt, find that day's close and period start (close - offset)
         self._period_end = \
-            self.cal.open_and_close(self.cal.to_exchange_period(dt))[1]
+            self.cal.open_and_close_for_session(
+                self.cal.minute_to_session_label(dt)
+            )[1]
 
         self._period_start = self._period_end - self.offset
         self._period_close = self._period_end
@@ -393,7 +396,7 @@ class NotHalfDay(StatelessRule):
     A rule that only triggers when it is not a half day.
     """
     def should_trigger(self, dt):
-        return self.cal.to_exchange_period(dt, direction="none") \
+        return self.cal.minute_to_session_label(dt, direction="none") \
             not in self.cal.early_closes
 
 
@@ -408,12 +411,12 @@ class TradingDayOfWeekRule(six.with_metaclass(ABCMeta, StatelessRule)):
     def execution_periods(self):
         # calculate the list of periods that match the given criteria
         return self.cal.schedule.groupby(
-            self.cal.schedule.index.asfreq("W", how="start")
+            pd.Grouper(freq="W")
         ).nth(self.td_delta).index
 
     def should_trigger(self, dt):
         # is this market minute's period in the list of execution periods?
-        return self.cal.to_exchange_period(dt, direction="none") in \
+        return self.cal.minute_to_session_label(dt, direction="none") in \
             self.execution_periods
 
 
@@ -445,14 +448,14 @@ class TradingDayOfMonthRule(six.with_metaclass(ABCMeta, StatelessRule)):
 
     def should_trigger(self, dt):
         # is this market minute's period in the list of execution periods?
-        return self.cal.to_exchange_period(dt, direction="none") in \
+        return self.cal.minute_to_session_label(dt, direction="none") in \
             self.execution_periods
 
     @lazyval
     def execution_periods(self):
         # calculate the list of periods that match the given criteria
         return self.cal.schedule.groupby(
-            self.cal.schedule.index.asfreq("M", how="start")
+            pd.Grouper(freq="M")
         ).nth(self.td_delta).index
 
 

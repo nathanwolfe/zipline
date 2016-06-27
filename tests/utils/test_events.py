@@ -1,5 +1,5 @@
 #
-# Copyright 2014 Quantopian, Inc.
+# Copyright 2016 Quantopian, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -205,18 +205,18 @@ def minutes_for_days(ordered_days=False):
         # optimization in AfterOpen and BeforeClose, we rely on the fact that
         # the clock only ever moves forward in a simulation. For those cases,
         # we guarantee that the list of trading days we test is ordered.
-        ordered_period_list = random.sample(list(cal.all_periods), 500)
-        ordered_period_list.sort()
+        ordered_session_list = random.sample(list(cal.all_sessions), 500)
+        ordered_session_list.sort()
 
-        def period_picker(day):
-            return ordered_period_list[day]
+        def session_picker(day):
+            return ordered_session_list[day]
     else:
         # Other than AfterOpen and BeforeClose, we don't rely on the the nature
         # of the clock, so we don't care.
-        def period_picker(day):
-            return random.choice(cal.all_periods[:-1])
+        def session_picker(day):
+            return random.choice(cal.all_sessions[:-1])
 
-    return ((cal.minutes_for_period(period_picker(cnt)),)
+    return ((cal.minutes_for_session(session_picker(cnt)),)
             for cnt in range(500))
 
 
@@ -276,15 +276,18 @@ class TestStatelessRules(RuleTestCase):
         cls.nyse_cal = get_calendar('NYSE')
 
         # First day of 09/2014 is closed whereas that for 10/2014 is open
-        cls.sept_periods = cls.nyse_cal.periods_in_range(
-            pd.Period('2014-09-01'), pd.Period('2014-09-30'),
+        cls.sept_sessions = cls.nyse_cal.sessions_in_range(
+            pd.Timestamp('2014-09-01', tz='UTC'),
+            pd.Timestamp('2014-09-30', tz='UTC'),
         )
-        cls.oct_periods = cls.nyse_cal.periods_in_range(
-            pd.Period('2014-10-01'), pd.Period('2014-10-31'),
+        cls.oct_sessions = cls.nyse_cal.sessions_in_range(
+            pd.Timestamp('2014-10-01', tz='UTC'),
+            pd.Timestamp('2014-10-31', tz='UTC'),
         )
 
-        cls.sept_week = cls.nyse_cal.minutes_for_periods_in_range(
-            pd.Period("2014-09-22"), pd.Period("2014-09-26")
+        cls.sept_week = cls.nyse_cal.minutes_for_sessions_in_range(
+            pd.Timestamp("2014-09-22", tz='UTC'),
+            pd.Timestamp("2014-09-26", tz='UTC')
         )
 
     @subtest(minutes_for_days(), 'ms')
@@ -322,13 +325,13 @@ class TestStatelessRules(RuleTestCase):
         rule = NotHalfDay()
         rule.cal = self.nyse_cal
 
-        half_day_period = pd.Period("2014-07-03")
-        full_day_period = pd.Period("2014-09-24")
+        half_day_period = pd.Timestamp("2014-07-03", tz='UTC')
+        full_day_period = pd.Timestamp("2014-09-24", tz='UTC')
 
-        for minute in self.nyse_cal.minutes_for_period(half_day_period):
+        for minute in self.nyse_cal.minutes_for_session(half_day_period):
             self.assertFalse(rule.should_trigger(minute))
 
-        for minute in self.nyse_cal.minutes_for_period(full_day_period):
+        for minute in self.nyse_cal.minutes_for_session(full_day_period):
             self.assertTrue(rule.should_trigger(minute))
 
     def test_NthTradingDayOfWeek_day_zero(self):
@@ -339,7 +342,9 @@ class TestStatelessRules(RuleTestCase):
         cal = get_calendar('NYSE')
         rule = NthTradingDayOfWeek(0)
         rule.cal = cal
-        first_open = self.nyse_cal.open_and_close(self.nyse_cal.all_periods[0])
+        first_open = self.nyse_cal.open_and_close_for_session(
+            self.nyse_cal.all_sessions[0]
+        )
         self.assertTrue(first_open)
 
     @subtest(param_range(MAX_WEEK_RANGE), 'n')
@@ -348,10 +353,12 @@ class TestStatelessRules(RuleTestCase):
         rule = NthTradingDayOfWeek(n)
         rule.cal = cal
         should_trigger = rule.should_trigger
-        prev_period = self.nyse_cal.to_exchange_period(self.sept_week[0])
+        prev_period = self.nyse_cal.minute_to_session_label(self.sept_week[0])
         n_tdays = 0
         for minute in self.sept_week:
-            period = self.nyse_cal.to_exchange_period(minute, direction="none")
+            period = self.nyse_cal.minute_to_session_label(
+                minute, direction="none"
+            )
 
             if prev_period < period:
                 n_tdays += 1
@@ -371,12 +378,14 @@ class TestStatelessRules(RuleTestCase):
         for minute in self.sept_week:
             if should_trigger(minute):
                 n_tdays = 0
-                period = self.nyse_cal.to_exchange_period(minute,
-                                                          direction="none")
-                next_period = self.nyse_cal.next_period(period)
-                while next_period.dayofweek > period.dayofweek:
-                    period = next_period
-                    next_period = self.nyse_cal.next_period(period)
+                session = self.nyse_cal.minute_to_session_label(
+                    minute,
+                    direction="none"
+                )
+                next_session = self.nyse_cal.next_session_label(session)
+                while next_session.dayofweek > session.dayofweek:
+                    session = next_session
+                    next_session = self.nyse_cal.next_session_label(session)
                     n_tdays += 1
 
                 self.assertEqual(n_tdays, n)
@@ -398,11 +407,12 @@ class TestStatelessRules(RuleTestCase):
         for that week, that the trigger is recalculated for next week.
         """
 
-        sim_start = pd.Period('2014-01-06') + timedelta(days=start_offset)
+        sim_start = pd.Timestamp('2014-01-06', tz='UTC') + \
+                    timedelta(days=start_offset)
 
-        jan_minutes = self.nyse_cal.minutes_for_periods_in_range(
-            pd.Period("2014-01-06") + timedelta(days=start_offset),
-            pd.Period("2014-01-31")
+        jan_minutes = self.nyse_cal.minutes_for_sessions_in_range(
+            pd.Timestamp("2014-01-06", tz='UTC') + timedelta(days=start_offset),
+            pd.Timestamp("2014-01-31", tz='UTC')
         )
 
         if type == 'week_start':
@@ -410,10 +420,10 @@ class TestStatelessRules(RuleTestCase):
             # Expect to trigger on the first trading day of the week, plus the
             # offset
             trigger_periods = [
-                pd.Period('2014-01-06'),
-                pd.Period('2014-01-13'),
-                pd.Period('2014-01-21'),
-                pd.Period('2014-01-27'),
+                pd.Timestamp('2014-01-06', tz='UTC'),
+                pd.Timestamp('2014-01-13', tz='UTC'),
+                pd.Timestamp('2014-01-21', tz='UTC'),
+                pd.Timestamp('2014-01-27', tz='UTC'),
             ]
             trigger_periods = \
                 [x + timedelta(days=rule_offset) for x in trigger_periods]
@@ -422,10 +432,10 @@ class TestStatelessRules(RuleTestCase):
             # Expect to trigger on the last trading day of the week, minus the
             # offset
             trigger_periods = [
-                pd.Period('2014-01-10'),
-                pd.Period('2014-01-17'),
-                pd.Period('2014-01-24'),
-                pd.Period('2014-01-31'),
+                pd.Timestamp('2014-01-10', tz='UTC'),
+                pd.Timestamp('2014-01-17', tz='UTC'),
+                pd.Timestamp('2014-01-24', tz='UTC'),
+                pd.Timestamp('2014-01-31', tz='UTC'),
             ]
             trigger_periods = \
                 [x - timedelta(days=rule_offset) for x in trigger_periods]
@@ -442,9 +452,9 @@ class TestStatelessRules(RuleTestCase):
         trigger_periods = [x for x in trigger_periods if x >= sim_start]
 
         # Get all the minutes on the trigger dates
-        trigger_minutes = self.nyse_cal.minutes_for_period(trigger_periods[0])
+        trigger_minutes = self.nyse_cal.minutes_for_session(trigger_periods[0])
         for period in trigger_periods[1:]:
-            trigger_minutes += self.nyse_cal.minutes_for_period(period)
+            trigger_minutes += self.nyse_cal.minutes_for_session(period)
 
         expected_n_triggered = len(trigger_minutes)
         trigger_minutes_iter = iter(trigger_minutes)
@@ -470,8 +480,9 @@ class TestStatelessRules(RuleTestCase):
 
         should_trigger = composed_rule.should_trigger
 
-        week_minutes = self.nyse_cal.minutes_for_periods_in_range(
-            pd.Period("2014-01-06"), pd.Period("2014-01-10")
+        week_minutes = self.nyse_cal.minutes_for_sessions_in_range(
+            pd.Timestamp("2014-01-06", tz='UTC'),
+            pd.Timestamp("2014-01-10", tz='UTC')
         )
 
         dt = pd.Timestamp('2014-01-06 14:30:00', tz='UTC')
@@ -493,9 +504,9 @@ class TestStatelessRules(RuleTestCase):
         rule = NthTradingDayOfMonth(n)
         rule.cal = cal
         should_trigger = rule.should_trigger
-        for periods_list in (self.sept_periods, self.oct_periods):
-            for n_tdays, period in enumerate(periods_list):
-                for m in self.nyse_cal.minutes_for_period(period):
+        for sessions_list in (self.sept_sessions, self.oct_sessions):
+            for n_tdays, session in enumerate(sessions_list):
+                for m in self.nyse_cal.minutes_for_session(session):
                     if should_trigger(m):
                         self.assertEqual(n_tdays, n)
                     else:
@@ -507,8 +518,8 @@ class TestStatelessRules(RuleTestCase):
         rule = NDaysBeforeLastTradingDayOfMonth(n)
         rule.cal = cal
         should_trigger = rule.should_trigger
-        for n_days_before, period in enumerate(reversed(self.oct_periods)):
-            for m in self.nyse_cal.minutes_for_period(period):
+        for n_days_before, session in enumerate(reversed(self.oct_sessions)):
+            for m in self.nyse_cal.minutes_for_session(session):
                 if should_trigger(m):
                     self.assertEqual(n_days_before, n)
                 else:

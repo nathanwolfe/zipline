@@ -412,7 +412,7 @@ class ExchangeCalendar(with_metaclass(ABCMeta)):
         first_minute, _ = self.open_and_close_for_session(start_session_label)
         _, last_minute = self.open_and_close_for_session(end_session_label)
 
-        return self._minutes_in_range(first_minute, last_minute)
+        return self.minutes_in_range(first_minute, last_minute)
 
     def open_and_close_for_session(self, session_label):
         """

@@ -1,5 +1,5 @@
 #
-# Copyright 2013 Quantopian, Inc.
+# Copyright 2016 Quantopian, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -180,12 +180,12 @@ def create_txn_history(sid, priceList, amtList, interval, sim_params,
 
 
 def create_returns_from_range(sim_params):
-    return pd.Series(index=sim_params.trading_days,
-                     data=np.random.rand(len(sim_params.trading_days)))
+    return pd.Series(index=sim_params.sessions,
+                     data=np.random.rand(len(sim_params.sessions)))
 
 
 def create_returns_from_list(returns, sim_params):
-    return pd.Series(index=sim_params.trading_days[:len(returns)],
+    return pd.Series(index=sim_params.sessions[:len(returns)],
                      data=returns)
 
 
