@@ -117,6 +117,14 @@ class ExchangeCalendar(with_metaclass(ABCMeta)):
         )
 
     @property
+    def opens(self):
+        return self.schedule.market_open
+
+    @property
+    def closes(self):
+        return self.schedule.market_close
+
+    @property
     def early_closes(self):
         return self._early_closes
 
