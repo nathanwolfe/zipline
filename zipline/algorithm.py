@@ -499,7 +499,7 @@ class TradingAlgorithm(object):
         """
         if self.sim_params.data_frequency == 'minute':
             trading_o_and_c = self.trading_calendar.schedule.ix[
-                self.sim_params.trading_days]
+                self.sim_params.sessions]
             market_opens = trading_o_and_c['market_open'].values.astype(
                 'datetime64[ns]').astype(np.int64)
             market_closes = trading_o_and_c['market_close'].values.astype(

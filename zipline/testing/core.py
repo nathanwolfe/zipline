@@ -607,8 +607,8 @@ def create_data_portal_from_trade_history(asset_finder, trading_calendar,
                                           tempdir, sim_params, trades_by_sid):
     if sim_params.data_frequency == "daily":
         path = os.path.join(tempdir.path, "testdaily.bcolz")
-        BcolzDailyBarWriter(path, sim_params.trading_days).write(
-            trades_by_sid_to_dfs(trades_by_sid, sim_params.trading_days),
+        BcolzDailyBarWriter(path, sim_params.sessions).write(
+            trades_by_sid_to_dfs(trades_by_sid, sim_params.sessions),
         )
 
         equity_daily_reader = BcolzDailyBarReader(path)

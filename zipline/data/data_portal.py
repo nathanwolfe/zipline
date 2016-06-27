@@ -567,11 +567,12 @@ class DataPortal(object):
                 )
             )
 
-            self.trading_calendar.all_sessions.get_loc(
-                self.trading_calendar.minute_to_session_label(
-                    self._first_trading_day
+            self._first_trading_day_loc = \
+                self.trading_calendar.all_sessions.get_loc(
+                    self.trading_calendar.minute_to_session_label(
+                        self._first_trading_day
+                    )
                 )
-            )
         else:
             self._first_trading_minute = None
             self._first_trading_day_loc = None

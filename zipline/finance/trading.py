@@ -22,6 +22,7 @@ from sqlalchemy import create_engine
 from zipline.assets import AssetDBWriter, AssetFinder
 from zipline.data.loader import load_market_data
 from zipline.utils.calendars import default_nyse_calendar
+from zipline.utils.memoize import remember_last
 
 log = logbook.Logger('Trading')
 
@@ -149,22 +150,34 @@ class SimulationParameters(object):
 
         self.trading_calendar = trading_calendar
 
-        first_session = trading_calendar.minute_to_session_label(
-            self.period_start
-        )
-        last_session = trading_calendar.minute_to_session_label(
-            self.period_end
-        )
+        if self.period_start in trading_calendar.schedule.index:
+            self.first_session = self.period_start
+        else:
+            self.first_session = trading_calendar.minute_to_session_label(
+                self.period_start
+            )
 
-        self.sessions = trading_calendar.sessions_in_range(first_session,
-                                                           last_session)
+        if self.period_end in trading_calendar.schedule.index:
+            self.last_session = self.period_end
+        else:
+            self.last_session = trading_calendar.minute_to_session_label(
+                self.period_end, direction="previous"
+            )
 
         self.first_open = trading_calendar.open_and_close_for_session(
-            first_session
+            self.first_session
         )[0]
         self.last_close = trading_calendar.open_and_close_for_session(
-            last_session
+            self.last_session
         )[1]
+
+    @property
+    @remember_last
+    def sessions(self):
+        return self.trading_calendar.sessions_in_range(
+            self.first_session,
+            self.last_session
+        )
 
     def create_from_copy(self, period_start, period_end):
         return SimulationParameters(

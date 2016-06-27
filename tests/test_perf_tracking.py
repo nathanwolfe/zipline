@@ -422,7 +422,7 @@ class TestDividendPerformance(WithSimParams,
         after = factory.get_next_trading_dt(
             before,
             timedelta(days=1),
-            self.trading_schedule,
+            self.trading_calendar,
         )
         self.assertEqual(after.hour, 13)
 
@@ -434,7 +434,7 @@ class TestDividendPerformance(WithSimParams,
             [100, 100, 100, 100, 100, 100],
             oneday,
             self.sim_params,
-            trading_schedule=self.trading_schedule,
+            trading_calendar=self.trading_calendar,
         )
 
         dbpath = self.instance_tmpdir.getpath('adjustments.sqlite')
@@ -442,7 +442,7 @@ class TestDividendPerformance(WithSimParams,
         writer = SQLiteAdjustmentWriter(
             dbpath,
             MockDailyBarReader(),
-            self.trading_schedule.all_execution_days,
+            self.trading_calendar.all_sessions,
         )
         splits = mergers = create_empty_splits_mergers_frame()
         dividends = pd.DataFrame({
@@ -457,7 +457,7 @@ class TestDividendPerformance(WithSimParams,
         adjustment_reader = SQLiteAdjustmentReader(dbpath)
         data_portal = create_data_portal_from_trade_history(
             self.env.asset_finder,
-            self.trading_schedule,
+            self.trading_calendar,
             self.instance_tmpdir,
             self.sim_params,
             {1: events},
@@ -500,7 +500,7 @@ class TestDividendPerformance(WithSimParams,
                 [100, 100, 100, 100, 100, 100],
                 oneday,
                 self.sim_params,
-                trading_schedule=self.trading_schedule,
+                trading_calendar=self.trading_calendar,
             )
 
         dbpath = self.instance_tmpdir.getpath('adjustments.sqlite')
@@ -508,7 +508,7 @@ class TestDividendPerformance(WithSimParams,
         writer = SQLiteAdjustmentWriter(
             dbpath,
             MockDailyBarReader(),
-            self.trading_schedule.all_execution_days,
+            self.trading_calendar.all_sessions
         )
         splits = mergers = create_empty_splits_mergers_frame()
         dividends = pd.DataFrame({
@@ -534,7 +534,7 @@ class TestDividendPerformance(WithSimParams,
 
         data_portal = create_data_portal_from_trade_history(
             self.env.asset_finder,
-            self.trading_schedule,
+            self.trading_calendar,
             self.instance_tmpdir,
             self.sim_params,
             events,
@@ -575,7 +575,7 @@ class TestDividendPerformance(WithSimParams,
             [100, 100, 100, 100, 100, 100],
             oneday,
             self.sim_params,
-            trading_schedule=self.trading_schedule,
+            trading_calendar=self.trading_calendar
         )
 
         dbpath = self.instance_tmpdir.getpath('adjustments.sqlite')
@@ -583,7 +583,7 @@ class TestDividendPerformance(WithSimParams,
         writer = SQLiteAdjustmentWriter(
             dbpath,
             MockDailyBarReader(),
-            self.trading_schedule.all_execution_days,
+            self.trading_calendar.all_days
         )
         splits = mergers = create_empty_splits_mergers_frame()
         dividends = pd.DataFrame({
@@ -599,7 +599,7 @@ class TestDividendPerformance(WithSimParams,
 
         data_portal = create_data_portal_from_trade_history(
             self.env.asset_finder,
-            self.trading_schedule,
+            self.trading_calendar,
             self.instance_tmpdir,
             self.sim_params,
             {1: events},
@@ -637,7 +637,7 @@ class TestDividendPerformance(WithSimParams,
             [100, 100, 100, 100, 100, 100],
             oneday,
             self.sim_params,
-            trading_schedule=self.trading_schedule,
+            trading_calendar=self.trading_calendar,
         )
 
         dbpath = self.instance_tmpdir.getpath('adjustments.sqlite')
@@ -645,7 +645,7 @@ class TestDividendPerformance(WithSimParams,
         writer = SQLiteAdjustmentWriter(
             dbpath,
             MockDailyBarReader(),
-            self.trading_schedule.all_execution_days,
+            self.trading_calendar.all_sessions,
         )
         splits = mergers = create_empty_splits_mergers_frame()
         dividends = pd.DataFrame({
@@ -661,7 +661,7 @@ class TestDividendPerformance(WithSimParams,
 
         data_portal = create_data_portal_from_trade_history(
             self.env.asset_finder,
-            self.trading_schedule,
+            self.trading_calendar,
             self.instance_tmpdir,
             self.sim_params,
             {1: events},
@@ -700,14 +700,14 @@ class TestDividendPerformance(WithSimParams,
             [100, 100, 100, 100, 100, 100],
             oneday,
             self.sim_params,
-            trading_schedule=self.trading_schedule,
+            trading_calendar=self.trading_calendar,
         )
         dbpath = self.instance_tmpdir.getpath('adjustments.sqlite')
 
         writer = SQLiteAdjustmentWriter(
             dbpath,
             MockDailyBarReader(),
-            self.trading_schedule.all_execution_days,
+            self.trading_calendar.all_sessions,
         )
         splits = mergers = create_empty_splits_mergers_frame()
 
@@ -724,7 +724,7 @@ class TestDividendPerformance(WithSimParams,
 
         data_portal = create_data_portal_from_trade_history(
             self.env.asset_finder,
-            self.trading_schedule,
+            self.trading_calendar,
             self.instance_tmpdir,
             self.sim_params,
             {1: events},
@@ -761,21 +761,21 @@ class TestDividendPerformance(WithSimParams,
             [100, 100, 100, 100, 100, 100],
             oneday,
             self.sim_params,
-            trading_schedule=self.trading_schedule,
+            trading_calendar=self.trading_calendar,
         )
 
         pay_date = self.sim_params.first_open
         # find pay date that is much later.
         for i in range(30):
             pay_date = factory.get_next_trading_dt(pay_date, oneday,
-                                                   self.trading_schedule)
+                                                   self.trading_calendar)
 
         dbpath = self.instance_tmpdir.getpath('adjustments.sqlite')
 
         writer = SQLiteAdjustmentWriter(
             dbpath,
             MockDailyBarReader(),
-            self.trading_schedule.all_execution_days,
+            self.trading_calendar.all_sessions,
         )
         splits = mergers = create_empty_splits_mergers_frame()
         dividends = pd.DataFrame({
@@ -791,7 +791,7 @@ class TestDividendPerformance(WithSimParams,
 
         data_portal = create_data_portal_from_trade_history(
             self.env.asset_finder,
-            self.trading_schedule,
+            self.trading_calendar,
             self.instance_tmpdir,
             self.sim_params,
             {1: events},
@@ -829,7 +829,7 @@ class TestDividendPerformance(WithSimParams,
             [100, 100, 100, 100, 100, 100],
             oneday,
             self.sim_params,
-            trading_schedule=self.trading_schedule,
+            trading_calendar=self.trading_calendar,
         )
 
         dbpath = self.instance_tmpdir.getpath('adjustments.sqlite')
@@ -853,7 +853,7 @@ class TestDividendPerformance(WithSimParams,
 
         data_portal = create_data_portal_from_trade_history(
             self.env.asset_finder,
-            self.trading_schedule,
+            self.trading_calendar,
             self.instance_tmpdir,
             self.sim_params,
             {1: events},
@@ -888,7 +888,7 @@ class TestDividendPerformance(WithSimParams,
             [100, 100, 100, 100, 100, 100],
             oneday,
             self.sim_params,
-            trading_schedule=self.trading_schedule,
+            trading_calendar=self.trading_calendar,
         )
 
         dbpath = self.instance_tmpdir.getpath('adjustments.sqlite')
@@ -896,7 +896,7 @@ class TestDividendPerformance(WithSimParams,
         writer = SQLiteAdjustmentWriter(
             dbpath,
             MockDailyBarReader(),
-            self.trading_schedule.all_execution_days,
+            self.trading_calendar.all_sessions,
         )
         splits = mergers = create_empty_splits_mergers_frame()
         dividends = pd.DataFrame({
@@ -912,7 +912,7 @@ class TestDividendPerformance(WithSimParams,
 
         data_portal = create_data_portal_from_trade_history(
             self.env.asset_finder,
-            self.trading_schedule,
+            self.trading_calendar,
             self.instance_tmpdir,
             self.sim_params,
             {1: events},
@@ -945,7 +945,7 @@ class TestDividendPerformance(WithSimParams,
             [100, 100, 100, 100, 100],
             oneday,
             self.sim_params,
-            trading_schedule=self.trading_schedule,
+            trading_calendar=self.trading_calendar,
         )
 
         dbpath = self.instance_tmpdir.getpath('adjustments.sqlite')
@@ -953,7 +953,7 @@ class TestDividendPerformance(WithSimParams,
         writer = SQLiteAdjustmentWriter(
             dbpath,
             MockDailyBarReader(),
-            self.trading_schedule.all_execution_days,
+            self.trading_calendar.all_sessions,
         )
         splits = mergers = create_empty_splits_mergers_frame()
         dividends = pd.DataFrame({
