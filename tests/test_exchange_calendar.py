@@ -263,7 +263,7 @@ class ExchangeCalendarTestBase(object):
                 self.calendar.previous_exchange_minute(hour_after_close)
             )
 
-    def test_session_date(self):
+    def test_to_exchange_period(self):
         for idx, info in enumerate(self.answers[1:-2].iterrows()):
             session_label = info[1].name
             open_minute = info[1].market_open
@@ -278,26 +278,36 @@ class ExchangeCalendarTestBase(object):
 
             # verify that minutes inside a session resolve correctly
             minutes_that_resolve_to_this_session = [
-                self.calendar.session_date(open_minute),
-                self.calendar.session_date(open_minute, direction="next"),
-                self.calendar.session_date(open_minute, direction="previous"),
-                self.calendar.session_date(open_minute, direction="none"),
-                self.calendar.session_date(hour_into_session),
-                self.calendar.session_date(hour_into_session,
+                self.calendar.to_exchange_period(open_minute),
+                self.calendar.to_exchange_period(open_minute,
+                                                 direction="next"),
+                self.calendar.to_exchange_period(open_minute,
+                                                 direction="previous"),
+                self.calendar.to_exchange_period(open_minute,
+                                                 direction="none"),
+                self.calendar.to_exchange_period(hour_into_session),
+                self.calendar.to_exchange_period(hour_into_session,
                                            direction="next"),
-                self.calendar.session_date(hour_into_session,
+                self.calendar.to_exchange_period(hour_into_session,
                                            direction="previous"),
-                self.calendar.session_date(hour_into_session,
+                self.calendar.to_exchange_period(hour_into_session,
                                            direction="none"),
-                self.calendar.session_date(close_minute),
-                self.calendar.session_date(close_minute, direction="next"),
-                self.calendar.session_date(close_minute, direction="previous"),
-                self.calendar.session_date(close_minute, direction="none"),
-                self.calendar.session_date(minute_before_session),
-                self.calendar.session_date(minute_before_session,
-                                           direction="next"),
-                self.calendar.session_date(minute_after_session,
-                                           direction="previous"),
+                self.calendar.to_exchange_period(close_minute),
+                self.calendar.to_exchange_period(close_minute,
+                                                 direction="next"),
+                self.calendar.to_exchange_period(close_minute,
+                                                 direction="previous"),
+                self.calendar.to_exchange_period(close_minute,
+                                                 direction="none"),
+                self.calendar.to_exchange_period(minute_before_session),
+                self.calendar.to_exchange_period(
+                    minute_before_session,
+                    direction="next"
+                ),
+                self.calendar.to_exchange_period(
+                    minute_after_session,
+                    direction="previous"
+                ),
                 session_label
             ]
 
@@ -305,8 +315,8 @@ class ExchangeCalendarTestBase(object):
                                 for x in minutes_that_resolve_to_this_session))
 
             minutes_that_resolve_to_next_session = [
-                self.calendar.session_date(minute_after_session),
-                self.calendar.session_date(minute_after_session,
+                self.calendar.to_exchange_period(minute_after_session),
+                self.calendar.to_exchange_period(minute_after_session,
                                            direction="next"),
                 next_session_label
             ]
@@ -315,17 +325,17 @@ class ExchangeCalendarTestBase(object):
                                 for x in minutes_that_resolve_to_next_session))
 
             self.assertEqual(
-                self.calendar.session_date(minute_before_session,
+                self.calendar.to_exchange_period(minute_before_session,
                                            direction="previous"),
                 previous_session_label
             )
 
             # make sure that exceptions are raised at the right time
             with self.assertRaises(ValueError):
-                self.calendar.session_date(open_minute, "asdf")
+                self.calendar.to_exchange_period(open_minute, "asdf")
 
             with self.assertRaises(ValueError):
-                self.calendar.session_date(minute_before_session,
+                self.calendar.to_exchange_period(minute_before_session,
                                            direction="none")
 
     def test_next_prev_period(self):

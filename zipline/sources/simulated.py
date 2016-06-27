@@ -22,7 +22,7 @@ import pandas as pd
 
 from zipline.sources.data_source import DataSource
 from zipline.gens.utils import hash_args
-from zipline.utils.calendars import default_nyse_schedule
+from zipline.utils.calendars import default_nyse_calendar
 
 
 class RandomWalkSource(DataSource):
@@ -36,7 +36,7 @@ class RandomWalkSource(DataSource):
 
     def __init__(self, start_prices=None, freq='minute', start=None,
                  end=None, drift=0.1, sd=0.1,
-                 trading_schedule=default_nyse_schedule):
+                 trading_calendar=default_nyse_calendar):
         """
         :Arguments:
             start_prices : dict
@@ -53,9 +53,9 @@ class RandomWalkSource(DataSource):
                  Constant drift of the price series.
             sd: float <default=0.1>
                  Standard deviation of the price series.
-            trading_schedule : TradingSchedule object <default: NYSESchedule>
-                 TradingSchedule to use.
-                 See zipline.utils for different choices.
+            trading_calendar: TradingCalendar object <default: NYSESchedule>
+                 TradingCalendar to use.
+                 See zipline.utils.calendars for different choices.
 
         :Example:
             # Assumes you have instantiated your Algorithm
@@ -79,13 +79,13 @@ class RandomWalkSource(DataSource):
         else:
             self.start_prices = start_prices
 
-        self.trading_schedule = trading_schedule
+        self.trading_calendar = trading_calendar
         if start is None:
-            self.start = trading_schedule.first_execution_day
+            self.start = trading_calendar.first_period.to_timestamp(tz='UTC')
         else:
             self.start = start
         if end is None:
-            self.end = trading_schedule.last_execution_day
+            self.end = trading_calendar.last_period.to_timestamp(tz='UTC')
         else:
             self.end = end
 
@@ -95,7 +95,9 @@ class RandomWalkSource(DataSource):
         self.sids = self.start_prices.keys()
 
         self.open_and_closes = \
-            trading_schedule.schedule[self.start:self.end]
+            trading_calendar.schedule[
+                self.start.to_period(freq="D"):self.end.to_period(freq="D")
+            ]
 
         self._raw_data = None
 

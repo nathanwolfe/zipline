@@ -364,41 +364,28 @@ class WithAssetFinder(WithDefaultDateBounds):
         cls.asset_finder = cls.make_asset_finder()
 
 
-class WithTradingSchedule(object):
+class WithTradingCalendar(object):
     """
-    ZiplineTestCase mixing providing cls.trading_schedule as a class-level
+    ZiplineTestCase mixing providing cls.trading_calendar as a class-level
     fixture.
 
-    After ``init_class_fixtures`` has been called, `cls.trading_schedule` is
+    After ``init_class_fixtures`` has been called, `cls.trading_calendar` is
     populated with a trading schedule.
 
     Attributes
     ----------
-    TRADING_SCHEDULE_CALENDAR : ExchangeCalendar
-        The ExchangeCalendar to be wrapped in an ExchangeTradingSchedule.
-
-    Methods
-    -------
-    make_trading_schedule() -> TradingSchedule
-        A class method that constructs the trading schedule for the class.
-
-    See Also
-    --------
-    :class:`zipline.utils.calendars.trading_schedule.TradingSchedule`
+    TRADING_CALENDAR_STR : str
+        The identifier of the calendar to use.
     """
-    TRADING_SCHEDULE_CALENDAR = get_calendar('NYSE')
-
-    @classmethod
-    def make_trading_schedule(cls):
-        return ExchangeTradingSchedule(cls.TRADING_SCHEDULE_CALENDAR)
+    TRADING_CALENDAR_STR = 'NYSE'
 
     @classmethod
     def init_class_fixtures(cls):
-        super(WithTradingSchedule, cls).init_class_fixtures()
-        cls.trading_schedule = cls.make_trading_schedule()
+        super(WithTradingCalendar, cls).init_class_fixtures()
+        cls.trading_calendar = get_calendar(cls.TRADING_CALENDAR_STR)
 
 
-class WithTradingEnvironment(WithAssetFinder, WithTradingSchedule):
+class WithTradingEnvironment(WithAssetFinder, WithTradingCalendar):
     """
     ZiplineTestCase mixin providing cls.env as a class-level fixture.
 
@@ -505,7 +492,7 @@ class WithSimParams(WithTradingEnvironment):
         cls.sim_params = cls.make_simparams()
 
 
-class WithNYSETradingDays(WithTradingSchedule):
+class WithNYSETradingDays(WithTradingCalendar):
     """
     ZiplineTestCase mixin providing cls.trading_days as a class-level fixture.
 

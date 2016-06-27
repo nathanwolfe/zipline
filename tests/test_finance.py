@@ -394,7 +394,7 @@ class TradingEnvironmentTestCase(WithLogger,
             period_start=datetime(2008, 1, 1, tzinfo=pytz.utc),
             period_end=datetime(2008, 12, 31, tzinfo=pytz.utc),
             capital_base=100000,
-            trading_schedule=self.trading_schedule,
+            trading_calendar=self.trading_calendar,
         )
 
         self.assertTrue(sp.last_close.month == 12)
@@ -415,7 +415,7 @@ class TradingEnvironmentTestCase(WithLogger,
             period_start=datetime(2007, 12, 31, tzinfo=pytz.utc),
             period_end=datetime(2008, 1, 7, tzinfo=pytz.utc),
             capital_base=100000,
-            trading_schedule=self.trading_schedule,
+            trading_calendar=self.trading_calendar,
         )
 
         expected_trading_days = (
@@ -431,6 +431,9 @@ class TradingEnvironmentTestCase(WithLogger,
         )
 
         num_expected_trading_days = 5
-        self.assertEquals(num_expected_trading_days, params.days_in_period)
+        self.assertEquals(
+            num_expected_trading_days,
+            len(params.trading_periods)
+        )
         np.testing.assert_array_equal(expected_trading_days,
                                       params.trading_days.tolist())

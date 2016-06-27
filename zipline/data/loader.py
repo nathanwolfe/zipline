@@ -29,7 +29,7 @@ from ..utils.paths import (
     data_root,
 )
 from ..utils.deprecate import deprecated
-from zipline.utils.calendars import get_calendar
+from zipline.utils.calendars.exchange_calendar import default_nyse_calendar
 
 logger = logbook.Logger('Loader')
 
@@ -39,15 +39,14 @@ INDEX_MAPPING = {
     (treasuries, 'treasury_curves.csv', 'www.federalreserve.gov'),
     '^GSPTSE':
     (treasuries_can, 'treasury_curves_can.csv', 'bankofcanada.ca'),
-    '^FTSE':  # use US treasuries until UK bonds implemented
+    '^FTSE':  # use US treasuries until UK bonds ximplemented
     (treasuries, 'treasury_curves.csv', 'www.federalreserve.gov'),
 }
 
 ONE_HOUR = pd.Timedelta(hours=1)
 
-nyse_cal = get_calendar('NYSE')
-trading_day_nyse = nyse_cal.day
-trading_days_nyse = nyse_cal.all_trading_days
+nyse_cal = default_nyse_calendar
+trading_periods_nyse = nyse_cal.all_periods
 
 
 def last_modified_time(path):
@@ -95,8 +94,7 @@ def has_data_for_dates(series_or_df, first_date, last_date):
     return (first <= first_date) and (last >= last_date)
 
 
-def load_market_data(trading_day=trading_day_nyse,
-                     trading_days=trading_days_nyse,
+def load_market_data(trading_periods=trading_periods_nyse,
                      bm_symbol='^GSPC'):
     """
     Load benchmark returns and treasury yield curves for the given calendar and
@@ -113,11 +111,8 @@ def load_market_data(trading_day=trading_day_nyse,
 
     Parameters
     ----------
-    trading_day : pandas.CustomBusinessDay, optional
-        A trading_day used to determine the latest day for which we
-        expect to have data.  Defaults to an NYSE trading day.
-    trading_days : pd.DatetimeIndex, optional
-        A calendar of trading days.  Also used for determining what cached
+    trading_periods : pd.PeriodIndex
+        A calendar of trading periods.  Also used for determining what cached
         dates we should expect to have cached. Defaults to the NYSE calendar.
     bm_symbol : str, optional
         Symbol for the benchmark index to load.  Defaults to '^GSPC', the Yahoo
@@ -136,8 +131,9 @@ def load_market_data(trading_day=trading_day_nyse,
     '1month', '3month', '6month',
     '1year','2year','3year','5year','7year','10year','20year','30year'
     """
-    first_date = trading_days[0]
-    now = pd.Timestamp.utcnow()
+    import pdb; pdb.set_trace()
+
+    first_period = trading_periods[0]
 
     # We expect to have benchmark and treasury data that's current up until
     # **two** full trading days prior to the most recently completed trading
@@ -151,9 +147,21 @@ def load_market_data(trading_day=trading_day_nyse,
     # download data for Tuesday the 20th, which is two full trading days prior
     # to the date on which we're running a test.
 
+    now = pd.Timestamp.utcnow()
+
     # We'll attempt to download new data if the latest entry in our cache is
     # before this date.
-    last_date = trading_days[trading_days.get_loc(now, method='ffill') - 2]
+    current_period = nyse_cal.minute_to_period(
+        now,
+        direction="previous"
+    )
+
+    last_period_to_use = nyse_cal.schedule.index[
+        default_nyse_calendar.schedule.index.get_loc(current_period) - 2
+    ]
+
+    first_date = first_period.to_timestamp(tz='UTC')
+    last_date = last_period_to_use.to_timestamp(tz='UTC')
 
     br = ensure_benchmark_data(
         bm_symbol,

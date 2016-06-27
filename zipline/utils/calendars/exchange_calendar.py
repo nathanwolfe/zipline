@@ -13,16 +13,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from abc import ABCMeta
-import pandas as pd
+from six import with_metaclass
+from numpy import searchsorted
 import numpy as np
+import pandas as pd
 from pandas import (
     DataFrame,
     date_range,
-    DateOffset,
     DatetimeIndex,
+    DateOffset
 )
 from pandas.tseries.offsets import CustomBusinessDay
-from six import with_metaclass
+
 from zipline.errors import (
     InvalidCalendarName,
     CalendarNameCollision,
@@ -33,7 +35,7 @@ from zipline.utils.calendars._calendar_helpers import (
     is_open
 )
 from zipline.utils.memoize import remember_last
-from numpy import searchsorted
+
 
 start_default = pd.Timestamp('1990-01-01', tz='UTC')
 end_base = pd.Timestamp('today', tz='UTC')
@@ -42,90 +44,6 @@ end_base = pd.Timestamp('today', tz='UTC')
 end_default = end_base + pd.Timedelta(days=365)
 
 NANOS_IN_MINUTE = 60000000000
-
-
-def days_at_time(days, t, tz, day_offset=0):
-    """
-    Shift an index of days to time t, interpreted in tz.
-
-    Overwrites any existing tz info on the input.
-
-    Parameters
-    ----------
-    days : DatetimeIndex
-        The "base" time which we want to change.
-    t : datetime.time
-        The time we want to offset @days by
-    tz : pytz.timezone
-        The timezone which these times represent
-    day_offset : int
-        The number of days we want to offset @days by
-    """
-    days = DatetimeIndex(days).tz_localize(None).tz_localize(tz)
-    days_offset = days + DateOffset(day_offset)
-    return days_offset.shift(
-        1, freq=DateOffset(hour=t.hour, minute=t.minute, second=t.second)
-    ).tz_convert('UTC')
-
-
-def holidays_at_time(calendar, start, end, time, tz):
-    return days_at_time(
-        calendar.holidays(
-            # Workaround for https://github.com/pydata/pandas/issues/9825.
-            start.tz_localize(None),
-            end.tz_localize(None),
-        ),
-        time,
-        tz=tz,
-    )
-
-
-def _overwrite_special_dates(midnight_utcs,
-                             opens_or_closes,
-                             special_opens_or_closes):
-    """
-    Overwrite dates in open_or_closes with corresponding dates in
-    special_opens_or_closes, using midnight_utcs for alignment.
-    """
-    # Short circuit when nothing to apply.
-    if not len(special_opens_or_closes):
-        return
-
-    len_m, len_oc = len(midnight_utcs), len(opens_or_closes)
-    if len_m != len_oc:
-        raise ValueError(
-            "Found misaligned dates while building calendar.\n"
-            "Expected midnight_utcs to be the same length as open_or_closes,\n"
-            "but len(midnight_utcs)=%d, len(open_or_closes)=%d" % len_m, len_oc
-        )
-
-    # Find the array indices corresponding to each special date.
-    indexer = midnight_utcs.get_indexer(special_opens_or_closes.normalize())
-
-    # -1 indicates that no corresponding entry was found.  If any -1s are
-    # present, then we have special dates that doesn't correspond to any
-    # trading day.
-    if -1 in indexer:
-        bad_dates = list(special_opens_or_closes[indexer == -1])
-        raise ValueError("Special dates %s are not trading days." % bad_dates)
-
-    # NOTE: This is a slightly dirty hack.  We're in-place overwriting the
-    # internal data of an Index, which is conceptually immutable.  Since we're
-    # maintaining sorting, this should be ok, but this is a good place to
-    # sanity check if things start going haywire with calendar computations.
-    opens_or_closes.values[indexer] = special_opens_or_closes.values
-
-
-# class EC(baseclass):
-#     next_open = baseclass._next_open
-#
-# class TS(baseclass):
-#     next_Execution_open = baseclass._next_open
-#
-# class QuantoCombinedTS(TS):
-#     start=6
-#     end=6
-#     b_t_s=8:45
 
 
 class ExchangeCalendar(with_metaclass(ABCMeta)):
@@ -141,7 +59,6 @@ class ExchangeCalendar(with_metaclass(ABCMeta)):
 
     For each period, we store the open and close time in UTC time.
     """
-
     def __init__(self, start=start_default, end=end_default):
         open_offset = self.open_offset
         close_offset = self.close_offset
@@ -189,14 +106,14 @@ class ExchangeCalendar(with_metaclass(ABCMeta)):
         self.market_closes_nanos = self.schedule.market_close.values.\
             astype(np.int64)
 
-        self._trading_minutes_nanos = self.all_trading_minutes.values.\
+        self._trading_minutes_nanos = self.all_minutes.values.\
             astype(np.int64)
 
         self.first_trading_day = _all_days[0]
         self.last_trading_day = _all_days[-1]
 
         self.early_closes = pd.PeriodIndex(
-            _special_closes.map(self.session_date)
+            _special_closes.map(self.minute_to_period)
         )
 
     def is_open_on_minute(self, dt):
@@ -287,7 +204,7 @@ class ExchangeCalendar(with_metaclass(ABCMeta)):
         idx = previous_divider_idx(self.market_closes_nanos, dt.value)
         return self.schedule.market_close[idx]
 
-    def next_exchange_minute(self, dt):
+    def next_minute(self, dt):
         """
         Given a dt, return the next exchange minute.  If the given dt is not
         an exchange minute, returns the next exchange open.
@@ -305,7 +222,7 @@ class ExchangeCalendar(with_metaclass(ABCMeta)):
         idx = next_divider_idx(self._trading_minutes_nanos, dt.value)
         return pd.Timestamp(self._trading_minutes_nanos[idx], tz='UTC')
 
-    def previous_exchange_minute(self, dt):
+    def previous_minute(self, dt):
         """
         Given a dt, return the previous exchange minute.
 
@@ -324,51 +241,6 @@ class ExchangeCalendar(with_metaclass(ABCMeta)):
 
         idx = previous_divider_idx(self._trading_minutes_nanos, dt.value)
         return pd.Timestamp(self._trading_minutes_nanos[idx], tz='UTC')
-
-    def session_date(self, dt, direction="next"):
-        """
-        Given a minute, get its containing period.
-
-        Parameters
-        ----------
-        dt : pd.Timestamp
-            The dt for which to get the containing period.
-
-        direction: str
-            "next" (default) means that if the given dt is not part of a
-            session, the next period.
-
-            "previous" means that if the given dt is not part of a session,
-            the previous period.
-
-            "none" means that a KeyError will be raised if the given
-            dt is not part of a period.
-
-        Returns
-        -------
-        pd.Period
-            The containing period.
-        """
-
-        idx = searchsorted(self.market_closes_nanos, dt.value)
-        current_or_next_session = self.schedule.index[idx]
-
-        if direction == "previous":
-            if not is_open(self.market_opens_nanos, self.market_closes_nanos,
-                           dt.value):
-                # if the exchange is closed, use the previous session
-                return self.schedule.index[idx - 1]
-        elif direction == "none":
-            if not is_open(self.market_opens_nanos, self.market_closes_nanos,
-                           dt.value):
-                # if the exchange is closed, blow up
-                raise ValueError("The given dt is not an exchange minute!")
-        elif direction != "next":
-            # invalid direction
-            raise ValueError("Invalid direction parameter: "
-                             "{0}".format(direction))
-
-        return current_or_next_session
 
     def next_period(self, period):
         """
@@ -438,8 +310,8 @@ class ExchangeCalendar(with_metaclass(ABCMeta)):
             All the minutes for the given period.
         """
         period_data = self.schedule.loc[period]
-        return self.all_trading_minutes[
-            self.all_trading_minutes.slice_indexer(
+        return self._all_minutes[
+            self._all_minutes.slice_indexer(
                 period_data.market_open,
                 period_data.market_close
             )
@@ -467,7 +339,11 @@ class ExchangeCalendar(with_metaclass(ABCMeta)):
             self.all_periods.slice_indexer(start_period, end_period)
         ]
 
-    def exchange_minutes_in_range(self, start_minute, end_minute):
+    def period_distance(self, start_period, end_period):
+        # FIXME TEST AND DOCUMENT
+        return len(self._periods_in_range(start_period, end_period))
+
+    def minutes_in_range(self, start_minute, end_minute):
         """
         Given start and end minutes, return all the exchange minutes
         in that range, inclusive.
@@ -498,16 +374,16 @@ class ExchangeCalendar(with_metaclass(ABCMeta)):
             # if the end minute is a market minute, increase by 1
             end_idx += 1
 
-        return self.all_trading_minutes[start_idx:end_idx]
+        return self.all_minutes[start_idx:end_idx]
 
     # FIXME test this method
-    def exchange_minutes_for_periods_in_range(self, start_period, end_period):
+    def minutes_for_periods_in_range(self, start_period, end_period):
         first_minute, _ = self.open_and_close(start_period)
         _, last_minute = self.open_and_close(end_period)
 
-        return self.exchange_minutes_in_range(first_minute, last_minute)
+        return self._minutes_in_range(first_minute, last_minute)
 
-    def open_and_close(self, period):
+    def open_and_close_for_period(self, period):
         """
         Returns a tuple of timestamps of the open and close of the given
         exchange session.
@@ -538,18 +414,53 @@ class ExchangeCalendar(with_metaclass(ABCMeta)):
         return self.schedule.index
 
     @property
-    @remember_last
-    def all_trading_days(self):
-        """
-        Returns a DatetimeIndex representing all the periods in this calendar
-        (using midnight UTC).  This exists for backwards compatibility and will
-        be removed soon.
-        """
-        return self.all_periods.to_timestamp().tz_localize('utc')
+    def first_period(self):
+        return self.all_periods[0]
+
+    @property
+    def last_period(self):
+        return self.all_periods[-1]
 
     @property
     @remember_last
-    def all_trading_minutes(self):
+    def all_periods_as_dts(self):
+         return self.all_periods.to_timestamp().tz_localize('utc')
+
+    #
+    # @property
+    # @remember_last
+    # def all_trading_days(self):
+    #     """
+    #     Returns a DatetimeIndex representing all the periods in this calendar
+    #     (using midnight UTC).  This exists for backwards compatibility and will
+    #     be removed soon.
+    #     """
+    #     return self.all_periods.to_timestamp().tz_localize('utc')
+    #
+    # @property
+    # @remember_last
+    # def first_trading_day(self):
+    #     """
+    #     This exists for backwards compatibility and will be removed soon (in
+    #     favor of `first_trading_period`.
+    #     """
+    #     return self.all_trading_days[0]
+    #
+    # @property
+    # @remember_last
+    # def last_trading_day(self):
+    #     """
+    #     This exists for backwards compatibility and will be removed soon (in
+    #     favor of `last_trading_period`.
+    #     """
+    #     return self.all_trading_days[-1]
+    #
+    # def trading_dates(self, start_day, ):
+
+
+    @property
+    @remember_last
+    def all_minutes(self):
         """
         Returns a DatetimeIndex representing all the minutes in this calendar.
         """
@@ -582,6 +493,51 @@ class ExchangeCalendar(with_metaclass(ABCMeta)):
             idx += size
 
         return DatetimeIndex(all_minutes).tz_localize("UTC")
+
+    def minute_to_period(self, dt, direction="next"):
+        """
+        Given a minute, get its containing period.
+
+        Parameters
+        ----------
+        dt : pd.Timestamp
+            The dt for which to get the containing period.
+
+        direction: str
+            "next" (default) means that if the given dt is not part of a
+            session, return the next period.
+
+            "previous" means that if the given dt is not part of a session,
+            return the previous period.
+
+            "none" means that a KeyError will be raised if the given
+            dt is not part of a period.
+
+        Returns
+        -------
+        pd.Period
+            The containing period.
+        """
+
+        idx = searchsorted(self.market_closes_nanos, dt.value)
+        current_or_next_session = self.schedule.index[idx]
+
+        if direction == "previous":
+            if not is_open(self.market_opens_nanos, self.market_closes_nanos,
+                           dt.value):
+                # if the exchange is closed, use the previous session
+                return self.schedule.index[idx - 1]
+        elif direction == "none":
+            if not is_open(self.market_opens_nanos, self.market_closes_nanos,
+                           dt.value):
+                # if the exchange is closed, blow up
+                raise ValueError("The given dt is not an exchange minute!")
+        elif direction != "next":
+            # invalid direction
+            raise ValueError("Invalid direction parameter: "
+                             "{0}".format(direction))
+
+        return current_or_next_session
 
     def _special_dates(self, calendars, ad_hoc_dates, start_date, end_date):
         """
@@ -617,6 +573,79 @@ class ExchangeCalendar(with_metaclass(ABCMeta)):
             start,
             end,
         )
+
+
+def days_at_time(days, t, tz, day_offset=0):
+    """
+    Shift an index of days to time t, interpreted in tz.
+
+    Overwrites any existing tz info on the input.
+
+    Parameters
+    ----------
+    days : DatetimeIndex
+        The "base" time which we want to change.
+    t : datetime.time
+        The time we want to offset @days by
+    tz : pytz.timezone
+        The timezone which these times represent
+    day_offset : int
+        The number of days we want to offset @days by
+    """
+    days = DatetimeIndex(days).tz_localize(None).tz_localize(tz)
+    days_offset = days + DateOffset(day_offset)
+    return days_offset.shift(
+        1, freq=DateOffset(hour=t.hour, minute=t.minute, second=t.second)
+    ).tz_convert('UTC')
+
+
+def holidays_at_time(calendar, start, end, time, tz):
+    return days_at_time(
+        calendar.holidays(
+            # Workaround for https://github.com/pydata/pandas/issues/9825.
+            start.tz_localize(None),
+            end.tz_localize(None),
+        ),
+        time,
+        tz=tz,
+    )
+
+
+def _overwrite_special_dates(midnight_utcs,
+                             opens_or_closes,
+                             special_opens_or_closes):
+    """
+    Overwrite dates in open_or_closes with corresponding dates in
+    special_opens_or_closes, using midnight_utcs for alignment.
+    """
+    # Short circuit when nothing to apply.
+    if not len(special_opens_or_closes):
+        return
+
+    len_m, len_oc = len(midnight_utcs), len(opens_or_closes)
+    if len_m != len_oc:
+        raise ValueError(
+            "Found misaligned dates while building calendar.\n"
+            "Expected midnight_utcs to be the same length as open_or_closes,\n"
+            "but len(midnight_utcs)=%d, len(open_or_closes)=%d" % len_m, len_oc
+        )
+
+    # Find the array indices corresponding to each special date.
+    indexer = midnight_utcs.get_indexer(special_opens_or_closes.normalize())
+
+    # -1 indicates that no corresponding entry was found.  If any -1s are
+    # present, then we have special dates that doesn't correspond to any
+    # trading day.
+    if -1 in indexer:
+        bad_dates = list(special_opens_or_closes[indexer == -1])
+        raise ValueError("Special dates %s are not trading days." % bad_dates)
+
+    # NOTE: This is a slightly dirty hack.  We're in-place overwriting the
+    # internal data of an Index, which is conceptually immutable.  Since we're
+    # maintaining sorting, this should be ok, but this is a good place to
+    # sanity check if things start going haywire with calendar computations.
+    opens_or_closes.values[indexer] = special_opens_or_closes.values
+
 
 
 _static_calendars = {}
@@ -726,3 +755,6 @@ def register_calendar(calendar, force=False):
         raise CalendarNameCollision(calendar_name=calendar.name)
 
     _static_calendars[calendar.name] = calendar
+
+
+default_nyse_calendar = get_calendar("NYSE")

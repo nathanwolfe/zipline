@@ -29,7 +29,7 @@ from zipline.data.loader import (  # For backwards compatibility
     load_from_yahoo,
     load_bars_from_yahoo,
 )
-from zipline.utils.calendars import default_nyse_schedule
+from zipline.utils.calendars import default_nyse_calendar
 
 
 __all__ = ['load_from_yahoo', 'load_bars_from_yahoo']
@@ -40,14 +40,14 @@ def create_simulation_parameters(year=2006, start=None, end=None,
                                  num_days=None,
                                  data_frequency='daily',
                                  emission_rate='daily',
-                                 trading_schedule=default_nyse_schedule):
+                                 trading_calendar=default_nyse_calendar):
     if start is None:
         start = pd.Timestamp("{0}-01-01".format(year), tz='UTC')
     if end is None:
         if num_days:
-            start_index = trading_schedule.all_execution_days\
+            start_index = trading_calendar.all_trading_days\
                 .searchsorted(start)
-            end = trading_schedule.all_execution_days[
+            end = trading_calendar.all_trading_days[
                 start_index + num_days - 1
             ]
         else:
@@ -58,7 +58,7 @@ def create_simulation_parameters(year=2006, start=None, end=None,
         capital_base=capital_base,
         data_frequency=data_frequency,
         emission_rate=emission_rate,
-        trading_schedule=trading_schedule,
+        trading_calendar=trading_calendar,
     )
 
     return sim_params

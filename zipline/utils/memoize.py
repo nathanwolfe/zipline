@@ -20,7 +20,7 @@ class lazyval(object):
     >>> from zipline.utils.memoize import lazyval
     >>> class C(object):
     ...     def __init__(self):
-    ...         self.count = 0
+    ...         self.count = 0fdfd
     ...     @lazyval
     ...     def val(self):
     ...         self.count += 1
@@ -297,3 +297,76 @@ def weak_lru_cache(maxsize=100):
 
 
 remember_last = weak_lru_cache(1)
+
+
+def days_at_time(days, t, tz, day_offset=0):
+    """
+    Shift an index of days to time t, interpreted in tz.
+
+    Overwrites any existing tz info on the input.
+
+    Parameters
+    ----------
+    days : DatetimeIndex
+        The "base" time which we want to change.
+    t : datetime.time
+        The time we want to offset @days by
+    tz : pytz.timezone
+        The timezone which these times represent
+    day_offset : int
+        The number of days we want to offset @days by
+    """
+    days = pd.DatetimeIndex(days).tz_localize(None).tz_localize(tz)
+    days_offset = days + pd.DateOffset(day_offset)
+    return days_offset.shift(
+        1, freq=pd.DateOffset(hour=t.hour, minute=t.minute, second=t.second)
+    ).tz_convert('UTC')
+
+
+def holidays_at_time(calendar, start, end, time, tz):
+    return days_at_time(
+        calendar.holidays(
+            # Workaround for https://github.com/pydata/pandas/issues/9825.
+            start.tz_localize(None),
+            end.tz_localize(None),
+        ),
+        time,
+        tz=tz,
+    )
+
+
+def _overwrite_special_dates(midnight_utcs,
+                             opens_or_closes,
+                             special_opens_or_closes):
+    """
+    Overwrite dates in open_or_closes with corresponding dates in
+    special_opens_or_closes, using midnight_utcs for alignment.
+    """
+    # Short circuit when nothing to apply.
+    if not len(special_opens_or_closes):
+        return
+
+    len_m, len_oc = len(midnight_utcs), len(opens_or_closes)
+    if len_m != len_oc:
+        raise ValueError(
+            "Found misaligned dates while building calendar.\n"
+            "Expected midnight_utcs to be the same length as open_or_closes,\n"
+            "but len(midnight_utcs)=%d, len(open_or_closes)=%d" % len_m, len_oc
+        )
+
+    # Find the array indices corresponding to each special date.
+    indexer = midnight_utcs.get_indexer(special_opens_or_closes.normalize())
+
+    # -1 indicates that no corresponding entry was found.  If any -1s are
+    # present, then we have special dates that doesn't correspond to any
+    # trading day.
+    if -1 in indexer:
+        bad_dates = list(special_opens_or_closes[indexer == -1])
+        raise ValueError("Special dates %s are not trading days." % bad_dates)
+
+    # NOTE: This is a slightly dirty hack.  We're in-place overwriting the
+    # internal data of an Index, which is conceptually immutable.  Since we're
+    # maintaining sorting, this should be ok, but this is a good place to
+    # sanity check if things start going haywire with calendar computations.
+    opens_or_closes.values[indexer] = special_opens_or_closes.values
+

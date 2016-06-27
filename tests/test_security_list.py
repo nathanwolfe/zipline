@@ -14,7 +14,7 @@ from zipline.testing import (
 )
 from zipline.testing.fixtures import (
     WithLogger,
-    WithTradingSchedule,
+    WithTradingCalendar,
     ZiplineTestCase,
 )
 from zipline.utils import factory
@@ -67,7 +67,7 @@ class IterateRLAlgo(TradingAlgorithm):
                 self.found = True
 
 
-class SecurityListTestCase(WithLogger, WithTradingSchedule, ZiplineTestCase):
+class SecurityListTestCase(WithLogger, WithTradingCalendar, ZiplineTestCase):
 
     @classmethod
     def init_class_fixtures(cls):

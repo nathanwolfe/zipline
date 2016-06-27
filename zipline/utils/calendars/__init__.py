@@ -14,13 +14,7 @@
 # limitations under the License.
 
 from .exchange_calendar import (
-    ExchangeCalendar, get_calendar
+    ExchangeCalendar, get_calendar, default_nyse_calendar
 )
-from .trading_schedule import (
-    TradingSchedule, ExchangeTradingSchedule, default_nyse_schedule
-)
-from .calendar_helpers import normalize_date
 
-__all__ = ['get_calendar', 'ExchangeCalendar', 'TradingSchedule',
-           'ExchangeTradingSchedule', 'default_nyse_schedule',
-           'normalize_date']
+__all__ = ['get_calendar', 'ExchangeCalendar', 'default_nyse_calendar']

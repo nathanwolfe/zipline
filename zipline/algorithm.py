@@ -98,10 +98,8 @@ from zipline.utils.api_support import (
 
 from zipline.utils.input_validation import ensure_upper_case, error_keywords
 from zipline.utils.cache import CachedObject, Expired
-from zipline.utils.calendars import (
-    default_nyse_schedule,
-    ExchangeTradingSchedule,
-)
+from zipline.utils.calendars.exchange_calendar import default_nyse_calendar
+
 import zipline.utils.events
 from zipline.utils.events import (
     EventManager,
@@ -282,9 +280,9 @@ class TradingAlgorithm(object):
             )
 
         # If a schedule has been provided, pop it. Otherwise, use NYSE.
-        self.trading_schedule = kwargs.pop(
+        self.trading_calendar = kwargs.pop(
             'trading_schedule',
-            default_nyse_schedule,
+            default_nyse_calendar
         )
 
         # set the capital base
@@ -295,11 +293,11 @@ class TradingAlgorithm(object):
                 capital_base=self.capital_base,
                 start=kwargs.pop('start', None),
                 end=kwargs.pop('end', None),
-                trading_schedule=self.trading_schedule,
+                trading_calendar=self.trading_calendar,
             )
         else:
             self.sim_params.update_internal_from_trading_schedule(
-                self.trading_schedule
+                self.trading_calendar
             )
 
         self.perf_tracker = None
@@ -992,10 +990,10 @@ class TradingAlgorithm(object):
         # Note that the ExchangeTradingSchedule is currently the only
         # TradingSchedule class, so this is unlikely to be hit
         # TODO The calendar should be a required arg for schedule_function
-        if not isinstance(self.trading_schedule, ExchangeTradingSchedule):
-            raise ScheduleFunctionWithoutCalendar(
-                schedule=self.trading_schedule
-            )
+        # if not isinstance(self.trading_schedule, ExchangeTradingSchedule):
+        #     raise ScheduleFunctionWithoutCalendar(
+        #         schedule=self.trading_schedule
+        #     )
         cal = self.trading_schedule._exchange_calendar
 
         self.add_event(

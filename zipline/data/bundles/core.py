@@ -32,8 +32,8 @@ from zipline.utils.preprocess import preprocess
 from zipline.utils.calendars import get_calendar
 
 nyse_cal = get_calendar('NYSE')
-trading_days = nyse_cal.all_trading_days
-open_and_closes = nyse_cal.schedule
+#trading_days = nyse_cal.all_trading_days
+#open_and_closes = nyse_cal.schedule
 
 
 def asset_db_path(bundle_name, timestr, environ=None):
@@ -106,7 +106,7 @@ def from_bundle_ingest_dirname(cs):
 
 _BundlePayload = namedtuple(
     '_BundlePayload',
-    'calendar opens closes minutes_per_day ingest create_writers',
+    'calendar minutes_per_day ingest create_writers',
 )
 
 BundleData = namedtuple(
@@ -190,9 +190,10 @@ def _make_bundle_core():
     @curry
     def register(name,
                  f,
-                 calendar=trading_days,
-                 opens=open_and_closes['market_open'],
-                 closes=open_and_closes['market_close'],
+                 #calendar=trading_days,
+                 #opens=open_and_closes['market_open'],
+                 #closes=open_and_closes['market_close'],
+                 calendar=nyse_cal,
                  minutes_per_day=390,
                  create_writers=True):
         """Register a data bundle ingest function.
@@ -258,10 +259,9 @@ def _make_bundle_core():
                 'Overwriting bundle with name %r' % name,
                 stacklevel=3,
             )
+
         _bundles[name] = _BundlePayload(
             calendar,
-            opens,
-            closes,
             minutes_per_day,
             f,
             create_writers,
@@ -339,6 +339,8 @@ def _make_bundle_core():
                 # SQLiteAdjustmentWriter needs to open the daily ctables so
                 # that it can compute the adjustment ratios for the dividends.
                 daily_bar_writer.write(())
+                import pdb; pdb.set_trace()
+
                 minute_bar_writer = BcolzMinuteBarWriter(
                     bundle.calendar[0],
                     stack.enter_context(working_dir(

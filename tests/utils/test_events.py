@@ -283,7 +283,7 @@ class TestStatelessRules(RuleTestCase):
             pd.Period('2014-10-01'), pd.Period('2014-10-31'),
         )
 
-        cls.sept_week = cls.nyse_cal.exchange_minutes_for_periods_in_range(
+        cls.sept_week = cls.nyse_cal.minutes_for_periods_in_range(
             pd.Period("2014-09-22"), pd.Period("2014-09-26")
         )
 
@@ -348,10 +348,10 @@ class TestStatelessRules(RuleTestCase):
         rule = NthTradingDayOfWeek(n)
         rule.cal = cal
         should_trigger = rule.should_trigger
-        prev_period = self.nyse_cal.session_date(self.sept_week[0])
+        prev_period = self.nyse_cal.to_exchange_period(self.sept_week[0])
         n_tdays = 0
         for minute in self.sept_week:
-            period = self.nyse_cal.session_date(minute, direction="none")
+            period = self.nyse_cal.to_exchange_period(minute, direction="none")
 
             if prev_period < period:
                 n_tdays += 1
@@ -371,7 +371,8 @@ class TestStatelessRules(RuleTestCase):
         for minute in self.sept_week:
             if should_trigger(minute):
                 n_tdays = 0
-                period = self.nyse_cal.session_date(minute, direction="none")
+                period = self.nyse_cal.to_exchange_period(minute,
+                                                          direction="none")
                 next_period = self.nyse_cal.next_period(period)
                 while next_period.dayofweek > period.dayofweek:
                     period = next_period
@@ -399,7 +400,7 @@ class TestStatelessRules(RuleTestCase):
 
         sim_start = pd.Period('2014-01-06') + timedelta(days=start_offset)
 
-        jan_minutes = self.nyse_cal.exchange_minutes_for_periods_in_range(
+        jan_minutes = self.nyse_cal.minutes_for_periods_in_range(
             pd.Period("2014-01-06") + timedelta(days=start_offset),
             pd.Period("2014-01-31")
         )
@@ -469,7 +470,7 @@ class TestStatelessRules(RuleTestCase):
 
         should_trigger = composed_rule.should_trigger
 
-        week_minutes = self.nyse_cal.exchange_minutes_for_periods_in_range(
+        week_minutes = self.nyse_cal.minutes_for_periods_in_range(
             pd.Period("2014-01-06"), pd.Period("2014-01-10")
         )
 

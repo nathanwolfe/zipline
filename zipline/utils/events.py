@@ -320,7 +320,7 @@ class AfterOpen(StatelessRule):
     def calculate_dates(self, dt):
         # given a dt, find that day's open and period end (open + offset)
         self._period_start, self._period_close = self.cal.open_and_close(
-            self.cal.session_date(dt, direction="none")
+            self.cal.to_exchange_period(dt, direction="none")
         )
         self._period_end = self._period_start + self.offset - self._one_minute
 
@@ -359,6 +359,7 @@ class BeforeClose(StatelessRule):
         )
 
         self._period_start = None
+        self._period_close = None
         self._period_end = None
 
         self._one_minute = datetime.timedelta(minutes=1)
@@ -366,7 +367,7 @@ class BeforeClose(StatelessRule):
     def calculate_dates(self, dt):
         # given a dt, find that day's close and period start (close - offset)
         self._period_end = \
-            self.cal.open_and_close(self.cal.session_date(dt))[1]
+            self.cal.open_and_close(self.cal.to_exchange_period(dt))[1]
 
         self._period_start = self._period_end - self.offset
         self._period_close = self._period_end
@@ -381,10 +382,7 @@ class BeforeClose(StatelessRule):
         # that we will NOT correctly recognize a new date if we go backwards
         # in time(which should never happen in a simulation, or in live
         # trading)
-        if (
-            self._period_start is None or
-            self._period_close <= dt
-        ):
+        if self._period_start is None or self._period_close <= dt:
             self.calculate_dates(dt)
 
         return self._period_start == dt
@@ -395,7 +393,7 @@ class NotHalfDay(StatelessRule):
     A rule that only triggers when it is not a half day.
     """
     def should_trigger(self, dt):
-        return self.cal.session_date(dt, direction="none") \
+        return self.cal.to_exchange_period(dt, direction="none") \
             not in self.cal.early_closes
 
 
@@ -415,7 +413,7 @@ class TradingDayOfWeekRule(six.with_metaclass(ABCMeta, StatelessRule)):
 
     def should_trigger(self, dt):
         # is this market minute's period in the list of execution periods?
-        return self.cal.session_date(dt, direction="none") in \
+        return self.cal.to_exchange_period(dt, direction="none") in \
             self.execution_periods
 
 
@@ -447,7 +445,7 @@ class TradingDayOfMonthRule(six.with_metaclass(ABCMeta, StatelessRule)):
 
     def should_trigger(self, dt):
         # is this market minute's period in the list of execution periods?
-        return self.cal.session_date(dt, direction="none") in \
+        return self.cal.to_exchange_period(dt, direction="none") in \
             self.execution_periods
 
     @lazyval

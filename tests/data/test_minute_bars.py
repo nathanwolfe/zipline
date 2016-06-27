@@ -45,7 +45,7 @@ from zipline.data.minute_bars import (
 
 from zipline.testing.fixtures import (
     WithInstanceTmpDir,
-    WithTradingSchedule,
+    WithTradingCalendar,
     ZiplineTestCase,
 )
 
@@ -56,7 +56,7 @@ TEST_CALENDAR_START = Timestamp('2014-06-02', tz='UTC')
 TEST_CALENDAR_STOP = Timestamp('2015-12-31', tz='UTC')
 
 
-class BcolzMinuteBarTestCase(WithTradingSchedule, WithInstanceTmpDir,
+class BcolzMinuteBarTestCase(WithTradingCalendar, WithInstanceTmpDir,
                              ZiplineTestCase):
 
     @classmethod

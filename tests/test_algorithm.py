@@ -97,7 +97,7 @@ from zipline.testing.fixtures import (
     WithSimParams,
     WithTradingEnvironment,
     WithTmpDir,
-    WithTradingSchedule,
+    WithTradingCalendar,
     ZiplineTestCase,
 )
 from zipline.test_algorithms import (
@@ -3396,7 +3396,7 @@ class TestRemoveData(TestCase):
         self.assertEqual(algo.data_lengths, self.live_asset_counts)
 
 
-class TestEquityAutoClose(WithTmpDir, WithTradingSchedule, ZiplineTestCase):
+class TestEquityAutoClose(WithTmpDir, WithTradingCalendar, ZiplineTestCase):
     """
     Tests if delisted equities are properly removed from a portfolio holding
     positions in said equities.
