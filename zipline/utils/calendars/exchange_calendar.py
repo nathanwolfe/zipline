@@ -34,8 +34,7 @@ from zipline.utils.calendars._calendar_helpers import (
     previous_divider_idx,
     is_open
 )
-from zipline.utils.memoize import remember_last
-
+from zipline.utils.memoize import remember_last, lazyval
 
 start_default = pd.Timestamp('1990-01-01', tz='UTC')
 end_base = pd.Timestamp('today', tz='UTC')
@@ -51,13 +50,14 @@ class ExchangeCalendar(with_metaclass(ABCMeta)):
     An ExchangeCalendar represents the timing information of a single market
     exchange.
 
-    The timing information is made up of two parts: periods, and opens/closes.
+    The timing information is made up of two parts: sessions, and opens/closes.
 
-    A period represents a contiguous set of minutes, like "May 18".
-    Importantly, a period is a chunk of time, instead of a specific point in
-    time. Periods cannot overlap with each other.
+    A session represents a contiguous set of minutes, and has a label that is
+    midnight UTC. It is important to note that a session label should not be
+    considered a specific point in time, and that midnight UTC is just being
+    used for convenience.
 
-    For each period, we store the open and close time in UTC time.
+    For each session, we store the open and close time in UTC time.
     """
     def __init__(self, start=start_default, end=end_default):
         open_offset = self.open_offset
@@ -91,7 +91,7 @@ class ExchangeCalendar(with_metaclass(ABCMeta)):
         # information. This looks like it has been resolved in 0.17.1.
         # http://pandas.pydata.org/pandas-docs/stable/whatsnew.html#datetime-with-tz  # noqa
         self.schedule = DataFrame(
-            index=_all_days.to_period(freq="D"),
+            index=_all_days,
             columns=['market_open', 'market_close'],
             data={
                 'market_open': self._opens,
@@ -109,12 +109,16 @@ class ExchangeCalendar(with_metaclass(ABCMeta)):
         self._trading_minutes_nanos = self.all_minutes.values.\
             astype(np.int64)
 
-        self.first_trading_day = _all_days[0]
-        self.last_trading_day = _all_days[-1]
+        self.first_trading_session = _all_days[0]
+        self.last_trading_session = _all_days[-1]
 
-        self.early_closes = pd.PeriodIndex(
-            _special_closes.map(self.minute_to_period)
+        self._early_closes = pd.DatetimeIndex(
+            _special_closes.map(self.minute_to_session_label)
         )
+
+    @property
+    def early_closes(self):
+        return self._early_closes
 
     def is_open_on_minute(self, dt):
         """
@@ -148,10 +152,10 @@ class ExchangeCalendar(with_metaclass(ABCMeta)):
         Returns
         -------
         pd.Timestamp
-            The timestamp of the next open.
+            The UTC timestamp of the next open.
         """
         idx = next_divider_idx(self.market_opens_nanos, dt.value)
-        return self.schedule.market_open[idx]
+        return self.schedule.market_open[idx].tz_localize('UTC')
 
     def next_close(self, dt):
         """
@@ -165,10 +169,10 @@ class ExchangeCalendar(with_metaclass(ABCMeta)):
         Returns
         -------
         pd.Timestamp
-            The timestamp of the next close.
+            The UTC timestamp of the next close.
         """
         idx = next_divider_idx(self.market_closes_nanos, dt.value)
-        return self.schedule.market_close[idx]
+        return self.schedule.market_close[idx].tz_localize('UTC')
 
     def previous_open(self, dt):
         """
@@ -182,10 +186,10 @@ class ExchangeCalendar(with_metaclass(ABCMeta)):
         Returns
         -------
         pd.Timestamp
-            The timestamp of the previous open.
+            The UTC imestamp of the previous open.
         """
         idx = previous_divider_idx(self.market_opens_nanos, dt.value)
-        return self.schedule.market_open[idx]
+        return self.schedule.market_open[idx].tz_localize('UTC')
 
     def previous_close(self, dt):
         """
@@ -199,10 +203,10 @@ class ExchangeCalendar(with_metaclass(ABCMeta)):
         Returns
         -------
         pd.Timestamp
-            The timestamp of the previous close.
+            The UTC timestamp of the previous close.
         """
         idx = previous_divider_idx(self.market_closes_nanos, dt.value)
-        return self.schedule.market_close[idx]
+        return self.schedule.market_close[idx].tz_localize('UTC')
 
     def next_minute(self, dt):
         """
@@ -242,106 +246,132 @@ class ExchangeCalendar(with_metaclass(ABCMeta)):
         idx = previous_divider_idx(self._trading_minutes_nanos, dt.value)
         return pd.Timestamp(self._trading_minutes_nanos[idx], tz='UTC')
 
-    def next_period(self, period):
+    def next_session_label(self, session_label):
         """
-        Given a period, returns the next session label.
+        Given a session label, returns the label of the next session.
 
         Parameters
         ----------
-        period: pd.Period
-            A period whose next period is desired.
+        session_label: pd.Timestamp
+            A session whose next session is desired.
 
         Returns
         -------
-        pd.Period
-            The next period.
+        pd.Timestamp
+            The next session label (midnight UTC).
 
         Notes
         -----
-        Raises ValueError if the given period is the last period in this
+        Raises ValueError if the given session is the last session in this
         calendar.
         """
-        period_idx = self.schedule.index.get_loc(period)
+        idx = self.schedule.index.get_loc(session_label)
         try:
-            return self.schedule.index[period_idx + 1]
+            return self.schedule.index[idx + 1]
         except IndexError:
-            if period_idx == len(self.schedule.index) - 1:
-                raise ValueError("There is no next period as this is the end"
+            if idx == len(self.schedule.index) - 1:
+                raise ValueError("There is no next session as this is the end"
                                  "of the exchange calendar.")
 
-    def previous_period(self, period):
+    def previous_session_label(self, session_label):
         """
-        Given a period, returns the previous period.
+        Given a session label, returns the label of the previous session.
 
         Parameters
         ----------
-        period: pd.Period
-            A period whose previous period is desired.
+        session_label: pd.Timestamp
+            A session whose previous session is desired.
 
         Returns
         -------
-        pd.Period
-            The previous period.
+        pd.Timestamp
+            The previous session label (midnight UTC).
 
         Notes
         -----
-        Raises ValueError if the given period is the first period in this
+        Raises ValueError if the given session is the first session in this
         calendar.
         """
-        period_idx = self.schedule.index.get_loc(period)
-        if period_idx == 0:
-            raise ValueError("There is no previous period as this is the"
+        idx = self.schedule.index.get_loc(session_label)
+        if idx == 0:
+            raise ValueError("There is no previous session as this is the"
                              "beginning of the exchange calendar.")
 
-        return self.schedule.index[period_idx - 1]
+        return self.schedule.index[idx - 1]
 
-    def minutes_for_period(self, period):
+    def minutes_for_session(self, session_label):
         """
-        Given a session date, return the minutes for that session.
+        Given a session label, return the minutes for that session.
 
         Parameters
         ----------
-        period: pd.Period
-            A period whose minutes are desired.
+        session_label: pd.Timestamp (midnight UTC)
+            A session label whose session's minutes are desired.
 
         Returns
         -------
         pd.DateTimeIndex
-            All the minutes for the given period.
+            All the minutes for the given session.
         """
-        period_data = self.schedule.loc[period]
-        return self._all_minutes[
-            self._all_minutes.slice_indexer(
-                period_data.market_open,
-                period_data.market_close
+        data = self.schedule.loc[session_label]
+        return self.all_minutes[
+            self.all_minutes.slice_indexer(
+                data.market_open,
+                data.market_close
             )
         ]
 
-    def periods_in_range(self, start_period, end_period):
+    def minutes_window(self, start_dt, count):
+        # FIXME TEST THIS
+        start_idx = self.all_minutes.get_loc(start_dt)
+        end_idx = start_idx + count
+
+        if start_idx > end_idx:
+            return self.all_minutes[(end_idx + 1):(start_idx + 1)]
+        else:
+            return self.all_minutes[start_idx:end_idx]
+
+    def sessions_in_range(self, start_session_label, end_session_label):
         """
-        Given start and end periods, return all the periods in that
+        Given start and end session labels, return all the sessions in that
         range, inclusive.
 
         Parameters
         ----------
-        start_period: pd.Period
-            The period representing the start of the desired range.
+        start_session_label: pd.Timestamp (midnight UTC)
+            The label representing the first session of the desired range.
 
-        end_period: pd.Period
-            The period representing the end of the desired range.
+        end_session_label: pd.Timestamp (midnight UTC)
+            The label representing the last session of the desired range.
 
         Returns
         -------
-        pd.PeriodIndex
-            The period in the desired range.
+        pd.DatetimeIndex
+            The desired sessions.
         """
-        return self.all_periods[
-            self.all_periods.slice_indexer(start_period, end_period)
+        return self.all_sessions[
+            self.all_sessions.slice_indexer(
+                start_session_label,
+                end_session_label
+            )
         ]
 
-    def period_distance(self, start_period, end_period):
+    def sessions_window(self, session_label, count):
+        # FIXME TEST THIS
+        start_idx = self.schedule.index.get_loc(session_label)
+        end_idx = start_idx + count
+
+        if start_idx > end_idx:
+            return self.all_sessions[(end_idx + 1):(start_idx + 1)]
+        else:
+            return self.all_sessions[start_idx:end_idx]
+
+    def session_distance(self, start_session_label, end_session_label):
         # FIXME TEST AND DOCUMENT
-        return len(self._periods_in_range(start_period, end_period))
+        return len(self.sessions_in_range(
+            start_session_label,
+            end_session_label)
+        )
 
     def minutes_in_range(self, start_minute, end_minute):
         """
@@ -377,28 +407,29 @@ class ExchangeCalendar(with_metaclass(ABCMeta)):
         return self.all_minutes[start_idx:end_idx]
 
     # FIXME test this method
-    def minutes_for_periods_in_range(self, start_period, end_period):
-        first_minute, _ = self.open_and_close(start_period)
-        _, last_minute = self.open_and_close(end_period)
+    def minutes_for_sessions_in_range(self, start_session_label,
+                                      end_session_label):
+        first_minute, _ = self.open_and_close_for_session(start_session_label)
+        _, last_minute = self.open_and_close_for_session(end_session_label)
 
         return self._minutes_in_range(first_minute, last_minute)
 
-    def open_and_close_for_period(self, period):
+    def open_and_close_for_session(self, session_label):
         """
-        Returns a tuple of timestamps of the open and close of the given
-        exchange session.
+        Returns a tuple of timestamps of the open and close of the session
+        represented by the given label.
 
         Parameters
         ----------
-        period: pd.Period
-            The period whose open and close are desired.
+        session_label: pd.Timestamp
+            The session whose open and close are desired.
 
         Returns
         -------
         (Timestamp, Timestamp)
-            The open and close for the given period.
+            The open and close for the given session.
         """
-        o_and_c = self.schedule.loc[period]
+        o_and_c = self.schedule.loc[session_label]
 
         # `market_open` and `market_close` should be timezone aware, but pandas
         # 0.16.1 does not appear to support this:
@@ -407,56 +438,16 @@ class ExchangeCalendar(with_metaclass(ABCMeta)):
                 o_and_c['market_close'].tz_localize('UTC'))
 
     @property
-    def all_periods(self):
-        """
-        Returns a PeriodIndex representing all the periods in this calendar.
-        """
+    def all_sessions(self):
         return self.schedule.index
 
     @property
-    def first_period(self):
-        return self.all_periods[0]
+    def first_session(self):
+        return self.all_sessions[0]
 
     @property
-    def last_period(self):
-        return self.all_periods[-1]
-
-    @property
-    @remember_last
-    def all_periods_as_dts(self):
-         return self.all_periods.to_timestamp().tz_localize('utc')
-
-    #
-    # @property
-    # @remember_last
-    # def all_trading_days(self):
-    #     """
-    #     Returns a DatetimeIndex representing all the periods in this calendar
-    #     (using midnight UTC).  This exists for backwards compatibility and will
-    #     be removed soon.
-    #     """
-    #     return self.all_periods.to_timestamp().tz_localize('utc')
-    #
-    # @property
-    # @remember_last
-    # def first_trading_day(self):
-    #     """
-    #     This exists for backwards compatibility and will be removed soon (in
-    #     favor of `first_trading_period`.
-    #     """
-    #     return self.all_trading_days[0]
-    #
-    # @property
-    # @remember_last
-    # def last_trading_day(self):
-    #     """
-    #     This exists for backwards compatibility and will be removed soon (in
-    #     favor of `last_trading_period`.
-    #     """
-    #     return self.all_trading_days[-1]
-    #
-    # def trading_dates(self, start_day, ):
-
+    def last_session(self):
+        return self.all_sessions[-1]
 
     @property
     @remember_last
@@ -494,29 +485,29 @@ class ExchangeCalendar(with_metaclass(ABCMeta)):
 
         return DatetimeIndex(all_minutes).tz_localize("UTC")
 
-    def minute_to_period(self, dt, direction="next"):
+    def minute_to_session_label(self, dt, direction="next"):
         """
-        Given a minute, get its containing period.
+        Given a minute, get the label of its containing session.
 
         Parameters
         ----------
         dt : pd.Timestamp
-            The dt for which to get the containing period.
+            The dt for which to get the containing session.
 
         direction: str
             "next" (default) means that if the given dt is not part of a
-            session, return the next period.
+            session, return the label of the next session.
 
             "previous" means that if the given dt is not part of a session,
-            return the previous period.
+            return the label of the previous session.
 
             "none" means that a KeyError will be raised if the given
-            dt is not part of a period.
+            dt is not part of a session.
 
         Returns
         -------
-        pd.Period
-            The containing period.
+        pd.Timestamp (midnight UTC)
+            The label of the containing session.
         """
 
         idx = searchsorted(self.market_closes_nanos, dt.value)

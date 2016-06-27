@@ -14,16 +14,14 @@
 # limitations under the License.
 
 import logbook
+import pandas as pd
 
 from six import string_types
 from sqlalchemy import create_engine
 
-import pandas as pd
-
 from zipline.assets import AssetDBWriter, AssetFinder
 from zipline.data.loader import load_market_data
-from zipline.utils.calendars.exchange_calendar import default_nyse_calendar
-from zipline.utils.memoize import remember_last
+from zipline.utils.calendars import default_nyse_calendar
 
 log = logbook.Logger('Trading')
 
@@ -89,8 +87,8 @@ class TradingEnvironment(object):
             load = load_market_data
 
         self.benchmark_returns, self.treasury_curves = load(
-            default_nyse_calendar.day,
-            default_nyse_calendar.schedule.index,
+            trading_calendar.day,
+            trading_calendar.schedule.index,
             self.bm_symbol,
         )
 
@@ -121,43 +119,20 @@ class TradingEnvironment(object):
 
 class SimulationParameters(object):
     def __init__(self, period_start, period_end,
+                 trading_calendar,
                  capital_base=10e3,
                  emission_rate='daily',
                  data_frequency='daily',
-                 trading_calendar=None,
                  arena='backtest'):
-        """
-        Contains the metadata for a simulation.
 
-        Parameters
-        ----------
-        period_start: pd.Period
-            The start period for this simulation.
-
-        period_end: pd.Period
-            The end period for this simulation.
-
-        capital_base: int
-            The dollar amount with which to start the simulation.
-
-        emission_rate: str ('daily' or 'minutely')
-            How frequently we should emit performance packets.
-            # FIXME should be in calendar?
-
-        trading_calendar: zipline.utils.calendar.exchange_calendar
-            Contains the timing information for this simulation.
-
-        arena: str
-            The environment in which this simulation is running.
-        """
-
-        # FIXME: do we validate here that period_start and period_end are
-        # valid periods for the given calendar?
-
-        assert type(period_start) == pd.Period
-        assert type(period_end) == pd.Period
-
-        assert trading_calendar is not None
+        assert trading_calendar is not None, \
+            "Must pass in trading calendar!"
+        assert period_start <= period_end, \
+            "Period start falls after period end."
+        assert period_start <= trading_calendar.last_trading_session, \
+            "Period start falls after the last known trading day."
+        assert period_end >= trading_calendar.first_trading_session, \
+            "Period end falls before the first known trading day."
 
         self.period_start = period_start
         self.period_end = period_end
@@ -169,36 +144,22 @@ class SimulationParameters(object):
         # copied to algorithm's environment for runtime access
         self.arena = arena
 
-        self.trading_calendar = trading_calendar
-
-        assert self.period_start <= self.period_end, \
-            "Period start falls after period end."
-        assert self.period_start <= self.trading_calendar.last_period, \
-            "Period start falls after the last known trading period."
-        assert self.period_end >= self.trading_calendar.first_period, \
-            "Period end falls before the first known trading period."
-
-    @property
-    @remember_last
-    def first_open(self):
-        return self.trading_calendar.open_and_close_for_period(
+        first_session = trading_calendar.minute_to_session_label(
             self.period_start
-        )[0]
-
-    @property
-    @remember_last
-    def last_close(self):
-        return self.trading_calendar.open_and_close_for_period(
-            self.period_end
-        )[1]
-
-    @property
-    @remember_last
-    def trading_periods(self):
-        return self.trading_calendar.periods_in_range(
-            self.period_start,
+        )
+        last_session = trading_calendar.minute_to_session_label(
             self.period_end
         )
+
+        self.sessions = trading_calendar.sessions_in_range(first_session,
+                                                           last_session)
+
+        self.first_open = trading_calendar.open_and_close_for_session(
+            first_session
+        )[0]
+        self.last_close = trading_calendar.open_and_close_for_session(
+            last_session
+        )[1]
 
     def __repr__(self):
         return """

@@ -37,7 +37,6 @@ from zipline.pipeline import SimplePipelineEngine
 from zipline.pipeline.loaders.testing import make_seeded_random_loader
 from zipline.utils.calendars import (
     get_calendar,
-    ExchangeTradingSchedule,
 )
 
 
@@ -428,7 +427,7 @@ class WithTradingEnvironment(WithAssetFinder, WithTradingCalendar):
         return TradingEnvironment(
             load=cls.make_load_function(),
             asset_db_path=cls.asset_finder.engine,
-            trading_schedule=cls.trading_schedule,
+            trading_calendar=cls.trading_calendar,
         )
 
     @classmethod

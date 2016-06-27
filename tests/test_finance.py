@@ -391,8 +391,8 @@ class TradingEnvironmentTestCase(WithLogger,
     """
     def test_simulation_parameters(self):
         sp = SimulationParameters(
-            period_start=datetime(2008, 1, 1, tzinfo=pytz.utc),
-            period_end=datetime(2008, 12, 31, tzinfo=pytz.utc),
+            period_start=pd.Timestamp("2008-01-01", tz='UTC'),
+            period_end=pd.Timestamp("2008-12-31", tz='UTC'),
             capital_base=100000,
             trading_calendar=self.trading_calendar,
         )
@@ -412,8 +412,8 @@ class TradingEnvironmentTestCase(WithLogger,
         #  27 28 29 30 31
 
         params = SimulationParameters(
-            period_start=datetime(2007, 12, 31, tzinfo=pytz.utc),
-            period_end=datetime(2008, 1, 7, tzinfo=pytz.utc),
+            period_start=pd.Timestamp("2007-12-31", tz='UTC'),
+            period_end=pd.Timestamp("2008-01-07", tz='UTC'),
             capital_base=100000,
             trading_calendar=self.trading_calendar,
         )
@@ -433,7 +433,7 @@ class TradingEnvironmentTestCase(WithLogger,
         num_expected_trading_days = 5
         self.assertEquals(
             num_expected_trading_days,
-            len(params.trading_periods)
+            len(params.sessions)
         )
         np.testing.assert_array_equal(expected_trading_days,
-                                      params.trading_days.tolist())
+                                      params.sessions.tolist())
