@@ -57,7 +57,7 @@ class BasePipelineTestCase(WithTradingCalendar, ZiplineTestCase):
         super(BasePipelineTestCase, cls).init_class_fixtures()
 
         cls.__calendar = date_range('2014', '2015',
-                                    freq=cls.trading_schedule.day)
+                                    freq=cls.trading_calendar.day)
         cls.__assets = assets = Int64Index(arange(1, 20))
         cls.__tmp_finder_ctx = tmp_asset_finder(
             equities=make_simple_equity_info(

@@ -144,6 +144,8 @@ class SimulationParameters(object):
         # copied to algorithm's environment for runtime access
         self.arena = arena
 
+        self.trading_calendar = trading_calendar
+
         first_session = trading_calendar.minute_to_session_label(
             self.period_start
         )
@@ -160,6 +162,17 @@ class SimulationParameters(object):
         self.last_close = trading_calendar.open_and_close_for_session(
             last_session
         )[1]
+
+    def create_from_copy(self, period_start, period_end):
+        return SimulationParameters(
+            period_start,
+            period_end,
+            self.trading_calendar,
+            capital_base=self.capital_base,
+            emission_rate=self.emission_rate,
+            data_frequency=self.data_frequency,
+            arena=self.arena
+        )
 
     def __repr__(self):
         return """

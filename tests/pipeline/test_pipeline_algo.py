@@ -60,7 +60,7 @@ from zipline.testing.fixtures import (
     WithDataPortal,
     ZiplineTestCase,
 )
-from zipline.utils.calendars import default_nyse_schedule
+from zipline.utils.calendars import default_nyse_calendar
 
 
 TEST_RESOURCE_PATH = join(
@@ -70,7 +70,7 @@ TEST_RESOURCE_PATH = join(
 )
 
 
-trading_day = default_nyse_schedule.day
+trading_day = default_nyse_calendar.day
 
 
 def rolling_vwap(df, length):

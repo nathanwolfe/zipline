@@ -560,22 +560,24 @@ class DataPortal(object):
         self._first_trading_day = first_trading_day
 
         # Get the first trading minute
-        self._first_trading_minute, _ = (
-            self.trading_calendar.open_and_close_for_session(
-                self._first_trading_day
+        if self._first_trading_day is not None:
+            self._first_trading_minute, _ = (
+                self.trading_calendar.open_and_close_for_session(
+                    self._first_trading_day
+                )
             )
-            if self._first_trading_day is not None else (None, None)
-        )
 
-        # Store the locs of the first day and first minute
-        self._first_trading_day_loc = (
-            self.trading_calendar.all_execution_days.get_loc(
-                self.trading_calendar.session_date(self._first_trading_day)
+            self.trading_calendar.all_sessions.get_loc(
+                self.trading_calendar.minute_to_session_label(
+                    self._first_trading_day
+                )
             )
-            if self._first_trading_day is not None else None
-        )
+        else:
+            self._first_trading_minute = None
+            self._first_trading_day_loc = None
+
         self._first_trading_minute_loc = (
-            self.trading_calendar.all_execution_minutes.get_loc(
+            self.trading_calendar.all_minutes.get_loc(
                 self._first_trading_minute
             )
             if self._first_trading_minute is not None else None
