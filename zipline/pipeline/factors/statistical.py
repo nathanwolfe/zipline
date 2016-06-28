@@ -78,8 +78,9 @@ class RollingPearson(_RollingCorrelation):
                 out[i] = pearsonr(base_data[:, i], target_data[:, i])[0]
         else:
             # Second input is a slice, so always compute with its only column.
+            slice_data = target_data[:, 0]
             for i in range(len(out)):
-                out[i] = pearsonr(base_data[:, i], target_data[:, 0])[0]
+                out[i] = pearsonr(base_data[:, i], slice_data)[0]
 
 
 class RollingSpearman(_RollingCorrelation):
@@ -122,8 +123,9 @@ class RollingSpearman(_RollingCorrelation):
                 out[i] = spearmanr(base_data[:, i], target_data[:, i])[0]
         else:
             # Second input is a slice, so always compute with its only column.
+            slice_data = target_data[:, 0]
             for i in range(len(out)):
-                out[i] = spearmanr(base_data[:, i], target_data[:, 0])[0]
+                out[i] = spearmanr(base_data[:, i], slice_data)[0]
 
 
 class RollingLinearRegression(CustomFactor, SingleInputMixin):
