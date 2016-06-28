@@ -33,7 +33,7 @@ from zipline.finance.execution import MarketOrder, LimitOrder
 from zipline.finance.performance import PerformanceTracker
 from zipline.finance.trading import SimulationParameters
 from zipline.data.us_equity_pricing import BcolzDailyBarReader
-from zipline.data.minute_bars import BcolzMinuteBarReader
+from zipline.data.minute_bars import BcolzEquityMinuteBarReader
 from zipline.data.data_portal import DataPortal
 from zipline.data.us_equity_pricing import BcolzDailyBarWriter
 from zipline.finance.slippage import FixedSlippage
@@ -223,7 +223,7 @@ class FinanceTestCase(WithLogger,
                     iteritems(assets),
                 )
 
-                equity_minute_reader = BcolzMinuteBarReader(tempdir.path)
+                equity_minute_reader = BcolzEquityMinuteBarReader(tempdir.path)
 
                 data_portal = DataPortal(
                     env.asset_finder, self.trading_schedule,

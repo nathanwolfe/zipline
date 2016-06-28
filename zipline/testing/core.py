@@ -30,7 +30,7 @@ from zipline.assets import AssetFinder, AssetDBWriter
 from zipline.assets.synthetic import make_simple_equity_info
 from zipline.data.data_portal import DataPortal
 from zipline.data.minute_bars import (
-    BcolzMinuteBarReader,
+    BcolzEquityMinuteBarReader,
     BcolzMinuteBarWriter,
     US_EQUITIES_MINUTES_PER_DAY
 )
@@ -482,7 +482,7 @@ def create_data_portal(asset_finder, tempdir, sim_params, sids,
         minute_path = write_minute_data(trading_schedule, tempdir, minutes,
                                         sids)
 
-        equity_minute_reader = BcolzMinuteBarReader(minute_path)
+        equity_minute_reader = BcolzEquityMinuteBarReader(minute_path)
 
         return DataPortal(
             asset_finder, trading_schedule,
@@ -658,7 +658,7 @@ def create_data_portal_from_trade_history(asset_finder, trading_schedule,
             assets
         )
 
-        equity_minute_reader = BcolzMinuteBarReader(tempdir.path)
+        equity_minute_reader = BcolzEquityMinuteBarReader(tempdir.path)
 
         return DataPortal(
             asset_finder, trading_schedule,
@@ -1319,7 +1319,8 @@ class tmp_dir(TempDirectory, object):
 
 
 class _TmpBarReader(with_metaclass(ABCMeta, tmp_dir)):
-    """A helper for tmp_bcolz_minute_bar_reader and tmp_bcolz_daily_bar_reader.
+    """A helper for tmp_bcolz_equity_equity_minute_bar_reader and
+       tmp_bcolz_equity_daily_bar_reader.
 
     Parameters
     ----------
@@ -1363,8 +1364,8 @@ class _TmpBarReader(with_metaclass(ABCMeta, tmp_dir)):
             raise
 
 
-class tmp_bcolz_minute_bar_reader(_TmpBarReader):
-    """A temporary BcolzMinuteBarReader object.
+class tmp_bcolz_equity_equity_minute_bar_reader(_TmpBarReader):
+    """A temporary BcolzEquityMinuteBarReader object.
 
     Parameters
     ----------
@@ -1380,13 +1381,13 @@ class tmp_bcolz_minute_bar_reader(_TmpBarReader):
 
     See Also
     --------
-    tmp_bcolz_daily_bar_reader
+    tmp_bcolz_equity_daily_bar_reader
     """
-    _reader_cls = BcolzMinuteBarReader
+    _reader_cls = BcolzEquityMinuteBarReader
     _write = staticmethod(write_bcolz_minute_data)
 
 
-class tmp_bcolz_daily_bar_reader(_TmpBarReader):
+class tmp_bcolz_equity_daily_bar_reader(_TmpBarReader):
     """A temporary BcolzDailyBarReader object.
 
     Parameters
@@ -1403,7 +1404,7 @@ class tmp_bcolz_daily_bar_reader(_TmpBarReader):
 
     See Also
     --------
-    tmp_bcolz_daily_bar_reader
+    tmp_bcolz_equity_daily_bar_reader
     """
     _reader_cls = BcolzDailyBarReader
 

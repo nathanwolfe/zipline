@@ -280,7 +280,7 @@ Writers
 
 Readers
 ```````
-.. autoclass:: zipline.data.minute_bars.BcolzMinuteBarReader
+.. autoclass:: zipline.data.minute_bars.BcolzEquityMinuteBarReader
    :members:
 
 .. autoclass:: zipline.data.us_equity_pricing.BcolzDailyBarReader

@@ -268,7 +268,7 @@ class BcolzMinuteBarWriter(object):
 
     See Also
     --------
-    zipline.data.minute_bars.BcolzMinuteBarReader
+    zipline.data.minute_bars.BcolzEquityMinuteBarReader
     """
     COL_NAMES = ('open', 'high', 'low', 'close', 'volume')
 
@@ -636,7 +636,7 @@ class BcolzMinuteBarWriter(object):
         table.flush()
 
 
-class BcolzMinuteBarReader(object):
+class BcolzEquityMinuteBarReader(object):
     """
     Reader for data written by BcolzMinuteBarWriter
 

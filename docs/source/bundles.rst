@@ -245,7 +245,7 @@ docs for write.
 ``minute_bar_writer`` is an instance of
 :class:`~zipline.data.minute_bars.BcolzMinuteBarWriter`. This writer is used to
 convert data to zipline's internal bcolz format to later be read by a
-:class:`~zipline.data.minute_bars.BcolzMinuteBarReader`. If minute data is
+:class:`~zipline.data.minute_bars.BcolzEquityMinuteBarReader`. If minute data is
 provided, users should call
 :meth:`~zipline.data.minute_bars.BcolzMinuteBarWriter.write` with an iterable of
 (sid, dataframe) tuples. The ``show_progress`` argument should also be forwarded

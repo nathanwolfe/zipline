@@ -37,7 +37,7 @@ from pandas import (
 
 from zipline.data.minute_bars import (
     BcolzMinuteBarWriter,
-    BcolzMinuteBarReader,
+    BcolzEquityMinuteBarReader,
     BcolzMinuteOverlappingData,
     US_EQUITIES_MINUTES_PER_DAY,
     BcolzMinuteWriterColumnMismatch
@@ -82,7 +82,7 @@ class BcolzMinuteBarTestCase(WithTradingSchedule, WithInstanceTmpDir,
             self.market_closes,
             US_EQUITIES_MINUTES_PER_DAY,
         )
-        self.reader = BcolzMinuteBarReader(self.dest)
+        self.reader = BcolzEquityMinuteBarReader(self.dest)
 
     def test_write_one_ohlcv(self):
         minute = self.market_opens[self.test_calendar_start]
@@ -735,7 +735,7 @@ class BcolzMinuteBarTestCase(WithTradingSchedule, WithInstanceTmpDir,
             index=minutes)
         self.writer.write_sid(sids[1], data_2)
 
-        reader = BcolzMinuteBarReader(self.dest)
+        reader = BcolzEquityMinuteBarReader(self.dest)
 
         columns = ['open', 'high', 'low', 'close', 'volume']
         sids = [sids[0], sids[1]]
@@ -787,7 +787,7 @@ class BcolzMinuteBarTestCase(WithTradingSchedule, WithInstanceTmpDir,
             index=minutes)
         self.writer.write_sid(sids[1], data_2)
 
-        reader = BcolzMinuteBarReader(self.dest)
+        reader = BcolzEquityMinuteBarReader(self.dest)
 
         columns = ['open', 'high', 'low', 'close', 'volume']
         sids = [sids[0], sids[1]]
