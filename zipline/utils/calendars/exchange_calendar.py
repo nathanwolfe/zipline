@@ -330,8 +330,21 @@ class ExchangeCalendar(with_metaclass(ABCMeta)):
         ]
 
     def minutes_window(self, start_dt, count):
-        # FIXME TEST THIS
-        start_idx = self.all_minutes.get_loc(start_dt)
+        try:
+            start_idx = self.all_minutes.get_loc(start_dt)
+        except KeyError:
+            # if this is not a market minute, go to the previous session's
+            # close
+            previous_session = self.minute_to_session_label(
+                start_dt, direction="previous"
+            )
+
+            previous_close = self.open_and_close_for_session(
+                previous_session
+            )[1]
+
+            start_idx = self.all_minutes.get_loc(previous_close)
+
         end_idx = start_idx + count
 
         if start_idx > end_idx:
@@ -370,9 +383,9 @@ class ExchangeCalendar(with_metaclass(ABCMeta)):
         end_idx = start_idx + count
 
         if start_idx > end_idx:
-            return self.all_sessions[(end_idx + 1):(start_idx + 1)]
+            return self.all_sessions[end_idx:(start_idx + 1)]
         else:
-            return self.all_sessions[start_idx:end_idx]
+            return self.all_sessions[start_idx:end_idx + 1]
 
     def session_distance(self, start_session_label, end_session_label):
         # FIXME TEST AND DOCUMENT

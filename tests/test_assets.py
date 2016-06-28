@@ -776,7 +776,7 @@ class AssetFinderTestCase(WithTradingCalendar, ZiplineTestCase):
 
     def test_compute_lifetimes(self):
         num_assets = 4
-        trading_day = self.trading_schedule.day
+        trading_day = self.trading_calendar.day
         first_start = pd.Timestamp('2015-04-01', tz='UTC')
 
         frame = make_rotating_equity_info(

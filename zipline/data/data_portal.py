@@ -560,23 +560,18 @@ class DataPortal(object):
         self._first_trading_day = first_trading_day
 
         # Get the first trading minute
-        if self._first_trading_day is not None:
-            self._first_trading_minute, _ = (
-                self.trading_calendar.open_and_close_for_session(
-                    self._first_trading_day
-                )
+        self._first_trading_minute, _ = (
+            self.trading_calendar.open_and_close_for_session(
+                self._first_trading_day
             )
+            if self._first_trading_day is not None else (None, None)
+        )
 
-            self._first_trading_day_loc = \
-                self.trading_calendar.all_sessions.get_loc(
-                    self.trading_calendar.minute_to_session_label(
-                        self._first_trading_day
-                    )
-                )
-        else:
-            self._first_trading_minute = None
-            self._first_trading_day_loc = None
-
+        # Store the locs of the first day and first minute
+        self._first_trading_day_loc = (
+            self.trading_calendar.all_sessions.get_loc(self._first_trading_day)
+            if self._first_trading_day is not None else None
+        )
         self._first_trading_minute_loc = (
             self.trading_calendar.all_minutes.get_loc(
                 self._first_trading_minute
@@ -1734,16 +1729,16 @@ class DataPortal(object):
         # we get all the minutes for the last (bars - 1) days, then add
         # all the minutes so far today.  the +2 is to account for ignoring
         # today, and the previous day, in doing the math.
-        session_for_minute = self.trading_calendar.minute_to_session(
+        session_for_minute = self.trading_calendar.minute_to_session_label(
             ending_minute
         )
-        previous_session = self.trading_calendar.previous_session(
+        previous_session = self.trading_calendar.previous_session_label(
             session_for_minute
         )
 
         sessions = self.trading_calendar.sessions_in_range(
             self.trading_calendar.sessions_window(previous_session,
-                                                  -days_count + 2),
+                                                  -days_count + 2)[0],
             previous_session,
         )
 

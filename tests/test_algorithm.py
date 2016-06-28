@@ -311,7 +311,6 @@ def handle_data(context, data):
     aapl_dt = data.current(sid(1), "last_traded")
     assert_equal(aapl_dt, get_datetime())
 """
-
         algo = TradingAlgorithm(script=algo_text,
                                 sim_params=self.sim_params,
                                 env=self.env)
@@ -754,7 +753,7 @@ class TestTransformAlgorithm(WithLogger,
                     cls.trading_calendar,
                 ) for sid in cls.sids
             },
-            index=cls.sim_params.trading_days,
+            index=cls.sim_params.sessions,
         )
 
     @classmethod
@@ -914,7 +913,8 @@ def before_trading_start(context, data):
         sim_params = SimulationParameters(
             period_start=asset133.start_date,
             period_end=asset133.end_date,
-            data_frequency="minute"
+            data_frequency="minute",
+            trading_calendar=self.trading_calendar
         )
 
         algo = TradingAlgorithm(
@@ -1012,6 +1012,9 @@ class TestBeforeTradingStart(WithDataPortal,
     SIM_PARAMS_CAPITAL_BASE = 10000
     SIM_PARAMS_DATA_FREQUENCY = 'minute'
     BCOLZ_DAILY_BAR_LOOKBACK_DAYS = BCOLZ_MINUTE_BAR_LOOKBACK_DAYS = 1
+
+    DATA_PORTAL_FIRST_TRADING_DAY = pd.Timestamp("2016-01-05", tz='UTC')
+    BCOLZ_MINUTE_BAR_START_DATE = pd.Timestamp("2016-01-05", tz='UTC')
 
     data_start = ASSET_FINDER_EQUITY_START_DATE = pd.Timestamp(
         '2016-01-05',
@@ -3191,7 +3194,7 @@ class TestOrderCancelation(WithDataPortal,
     @classmethod
     def make_minute_bar_data(cls):
         asset_minutes = \
-            cls.trading_calendar.minutes_in_range(
+            cls.trading_calendar.minutes_for_sessions_in_range(
                 cls.sim_params.period_start,
                 cls.sim_params.period_end,
             )
@@ -3221,7 +3224,7 @@ class TestOrderCancelation(WithDataPortal,
                 'close': np.full(3, 1),
                 'volume': np.full(3, 1),
             },
-            index=cls.sim_params.trading_days,
+            index=cls.sim_params.sessions,
         )
 
     def prep_algo(self, cancelation_string, data_frequency="minute",
@@ -3423,7 +3426,7 @@ class TestEquityAutoClose(WithTmpDir, WithTradingCalendar, ZiplineTestCase):
     @classmethod
     def init_class_fixtures(cls):
         super(TestEquityAutoClose, cls).init_class_fixtures()
-        trading_sessions = cls.trading_calendar.sessions
+        trading_sessions = cls.trading_calendar.all_sessions
         start_date = pd.Timestamp('2015-01-05', tz='UTC')
         start_date_loc = trading_sessions.get_loc(start_date)
         test_duration = 7
@@ -3468,7 +3471,7 @@ class TestEquityAutoClose(WithTmpDir, WithTradingCalendar, ZiplineTestCase):
                 frequency=frequency
             )
             path = self.tmpdir.getpath("testdaily.bcolz")
-            BcolzDailyBarWriter(path, dates).write(
+            BcolzDailyBarWriter(path, dates, self.trading_calendar).write(
                 iteritems(trade_data_by_sid),
             )
             reader = BcolzDailyBarReader(path)
@@ -3478,7 +3481,7 @@ class TestEquityAutoClose(WithTmpDir, WithTradingCalendar, ZiplineTestCase):
                 equity_daily_reader=reader,
             )
         elif frequency == 'minute':
-            dates = self.trading_calendar.execution_minutes_for_days_in_range(
+            dates = self.trading_calendar.minutes_for_sessions_in_range(
                 self.test_days[0],
                 self.test_days[-1],
             )

@@ -411,8 +411,12 @@ class ExplodingObject(object):
 
 
 def write_minute_data(trading_calendar, tempdir, minutes, sids):
-    first_session = trading_calendar.session_date(minutes[0], direction="none")
-    last_session = trading_calendar.session_date(minutes[-1], direction="none")
+    first_session = trading_calendar.minute_to_session_label(
+        minutes[0], direction="none"
+    )
+    last_session = trading_calendar.minute_to_session_label(
+        minutes[-1], direction="none"
+    )
 
     sessions = trading_calendar.sessions_in_range(first_session, last_session)
 
@@ -440,8 +444,8 @@ def create_minute_bar_data(minutes, sids):
         )
 
 
-def create_daily_bar_data(trading_days, sids):
-    length = len(trading_days)
+def create_daily_bar_data(sessions, sids):
+    length = len(sessions)
     for sid_idx, sid in enumerate(sids):
         yield sid, pd.DataFrame(
             {
@@ -450,16 +454,16 @@ def create_daily_bar_data(trading_days, sids):
                 "low": (np.array(range(8, 8 + length)) + sid_idx),
                 "close": (np.array(range(10, 10 + length)) + sid_idx),
                 "volume": np.array(range(100, 100 + length)) + sid_idx,
-                "day": [day.value for day in trading_days]
+                "day": [session.value for session in sessions]
             },
-            index=trading_days,
+            index=sessions,
         )
 
 
-def write_daily_data(tempdir, sim_params, sids):
+def write_daily_data(tempdir, sim_params, sids, trading_calendar):
     path = os.path.join(tempdir.path, "testdaily.bcolz")
-    BcolzDailyBarWriter(path, sim_params.trading_days).write(
-        create_daily_bar_data(sim_params.trading_days, sids),
+    BcolzDailyBarWriter(path, sim_params.sessions, trading_calendar).write(
+        create_daily_bar_data(sim_params.sessions, sids),
     )
 
     return path
@@ -468,7 +472,8 @@ def write_daily_data(tempdir, sim_params, sids):
 def create_data_portal(asset_finder, tempdir, sim_params, sids,
                        trading_calendar, adjustment_reader=None):
     if sim_params.data_frequency == "daily":
-        daily_path = write_daily_data(tempdir, sim_params, sids)
+        daily_path = write_daily_data(tempdir, sim_params, sids,
+                                      trading_calendar)
 
         equity_daily_reader = BcolzDailyBarReader(daily_path)
 
@@ -607,7 +612,7 @@ def create_data_portal_from_trade_history(asset_finder, trading_calendar,
                                           tempdir, sim_params, trades_by_sid):
     if sim_params.data_frequency == "daily":
         path = os.path.join(tempdir.path, "testdaily.bcolz")
-        BcolzDailyBarWriter(path, sim_params.sessions).write(
+        BcolzDailyBarWriter(path, sim_params.sessions, trading_calendar).write(
             trades_by_sid_to_dfs(trades_by_sid, sim_params.sessions),
         )
 

@@ -107,7 +107,8 @@ class PerformanceTracker(object):
         self.emission_rate = sim_params.emission_rate
 
         self.sessions = self.trading_calendar.sessions_in_range(
-            self.period_start, self.period_end
+            self.sim_params.first_session,
+            self.sim_params.last_session
         )
 
         self.position_tracker = PositionTracker(

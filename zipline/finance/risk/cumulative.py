@@ -90,8 +90,8 @@ class RiskMetricsCumulative(object):
                  create_first_day_stats=False):
         self.treasury_curves = treasury_curves
         self.trading_calendar = trading_calendar
-        self.start_session = sim_params.period_start
-        self.end_session = sim_params.period_end
+        self.start_session = sim_params.first_session
+        self.end_session = sim_params.last_session
 
         self.sessions = trading_calendar.sessions_in_range(
             self.start_session, self.end_session

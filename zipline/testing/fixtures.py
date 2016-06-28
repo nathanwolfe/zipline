@@ -710,7 +710,7 @@ class WithBcolzDailyBarReader(WithTradingEnvironment, WithTmpDir):
                 first_session = cls.trading_calendar.sessions_window(
                     first_session,
                     -1 * cls.BCOLZ_DAILY_BAR_LOOKBACK_DAYS
-                )[-1]
+                )[0]
 
             days = cls.trading_calendar.sessions_in_range(
                 first_session,
@@ -718,7 +718,7 @@ class WithBcolzDailyBarReader(WithTradingEnvironment, WithTmpDir):
             )
         cls.bcolz_daily_bar_days = days
         cls.bcolz_daily_bar_ctable = t = getattr(
-            BcolzDailyBarWriter(p, days),
+            BcolzDailyBarWriter(p, days, cls.trading_calendar),
             cls._write_method_name,
         )(cls.make_daily_bar_data())
 
@@ -793,7 +793,7 @@ class WithBcolzMinuteBarReader(WithTradingEnvironment, WithTmpDir):
     @classmethod
     def make_minute_bar_data(cls):
         return create_minute_bar_data(
-            cls.trading_calendar.minutes_in_range(
+            cls.trading_calendar.minutes_for_sessions_in_range(
                 cls.bcolz_minute_bar_days[0],
                 cls.bcolz_minute_bar_days[-1],
             ),
@@ -821,11 +821,11 @@ class WithBcolzMinuteBarReader(WithTradingEnvironment, WithTmpDir):
                     first_session,
                     -1 * cls.BCOLZ_MINUTE_BAR_LOOKBACK_DAYS
                 )[-1]
-
             days = cls.trading_calendar.sessions_in_range(
                 first_session,
                 cls.BCOLZ_MINUTE_BAR_END_DATE,
             )
+
         cls.bcolz_minute_bar_days = days
         writer = BcolzMinuteBarWriter(
             days[0],

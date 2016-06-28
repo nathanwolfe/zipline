@@ -55,9 +55,9 @@ class BenchmarkSource(object):
             if self.emission_rate == "minute":
                 # we need to take the env's benchmark returns, which are daily,
                 # and resample them to minute
-                minutes = trading_calendar.minutes_in_range(
-                    start=sessions[0],
-                    end=sessions[-1]
+                minutes = trading_calendar.minutes_for_sessions_in_range(
+                    sessions[0],
+                    sessions[-1]
                 )
 
                 minute_series = daily_series.reindex(

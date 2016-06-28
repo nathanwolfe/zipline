@@ -43,15 +43,14 @@ def create_simulation_parameters(year=2006, start=None, end=None,
                                  trading_calendar=default_nyse_calendar):
     if start is None:
         start = pd.Timestamp("{0}-01-01".format(year), tz='UTC')
+
     if end is None:
         if num_days:
-            start_index = trading_calendar.all_trading_days\
-                .searchsorted(start)
-            end = trading_calendar.all_trading_days[
-                start_index + num_days - 1
-            ]
+            start_index = trading_calendar.all_sessions.searchsorted(start)
+            end = trading_calendar.all_sessions[start_index + num_days - 1]
         else:
             end = pd.Timestamp("{0}-12-31".format(year), tz='UTC')
+
     sim_params = SimulationParameters(
         period_start=start,
         period_end=end,
