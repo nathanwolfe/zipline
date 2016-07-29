@@ -338,3 +338,41 @@ contain the time of the start of the current ingestion. This can be used to
 directly move resources here if for some reason your ingest function can produce
 it's own outputs without the writers. For example, the ``quantopian:quandl``
 bundle uses this to directly untar the bundle into the ``output_dir``.
+
+
+Custom Bundle Example
+`````````````````````
+
+Let's write a basic custom bundle. For any given asset, we can download pricing
+data from various sources in the form of a CSV file. For this example, we'll use
+data downloaded from Google Finance. It looks like this:
+
++-----------+-------+-------+-------+-------+----------+
+| Date      | Open  | High  | Low   | Close | Volume   |
++===========+=======+=======+=======+=======+==========+
+| 26-Jul-16 | 96.82 | 97.97 | 96.42 | 96.67 | 56239822 |
++-----------+-------+-------+-------+-------+----------+
+| 25-Jul-16 | 98.25 | 98.84 | 96.92 | 97.34 | 40382921 |
++-----------+-------+-------+-------+-------+----------+
+| 22-Jul-16 | 99.26 | 99.3  | 98.31 | 98.66 | 28313669 |
++-----------+-------+-------+-------+-------+----------+
+| ⋮         | ⋮     | ⋮     | ⋮     | ⋮     | ⋮        |
++-----------+-------+-------+-------+-------+----------+
+
+To write a custom bundle, we need to write an ``ingest`` function. Let's start:
+
+.. code-block:: python
+
+   def ingest(environ, #unused
+              asset_db_writer,
+              minute_bar_writer, #unused
+              daily_bar_writer,
+              adjustment_writer,
+              calendar,
+              cache, #unused
+              show_progress,
+              output_dir): #unused
+
+``environ``, ``cache``, and ``output_dir`` aren't necessary for our basic
+purposes. We will use ``daily_bar_writer`` instead of ``minute_bar_writer``
+because our data is by day.
