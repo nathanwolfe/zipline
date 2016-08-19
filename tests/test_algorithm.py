@@ -4182,6 +4182,7 @@ class TestPanelData(ZiplineTestCase):
     ])
     def test_panel_data(self, data_frequency, start_dt, end_dt):
         trading_calendar = get_calendar('NYSE')
+        sids = range(1, 3)
         if data_frequency == 'daily':
             history_freq = '1d'
             create_df_for_asset = create_daily_df_for_asset
@@ -4192,8 +4193,15 @@ class TestPanelData(ZiplineTestCase):
 
             def dt_transform(dt):
                 return dt
+            aggregator_fields = ['high', 'close', 'volume']
+            minutes_by_session = map(
+                trading_calendar.minutes_for_session,
+                trading_calendar.sessions_in_range(start_dt, end_dt)
+            )
+            history_record = pd.Panel(items=aggregator_fields,
+                                      major_axis=range(2),
+                                      minor_axis=sids)
 
-        sids = range(1, 3)
         dfs = {}
         for sid in sids:
             dfs[sid] = create_df_for_asset(trading_calendar,
@@ -4207,9 +4215,11 @@ class TestPanelData(ZiplineTestCase):
 
         def initialize(algo):
             algo.first_bar = True
-            algo.equities = []
-            for sid in sids:
-                algo.equities.append(algo.sid(sid))
+            algo.equities = map(algo.sid, sids)
+            if data_frequency == 'minute':
+                algo.schedule_function(daily_history, date_rules.every_day(),
+                                       time_rules.market_open(hours=1,
+                                                              minutes=0))
 
         def handle_data(algo, data):
             price_record.loc[:, dt_transform(algo.get_datetime()),
@@ -4225,12 +4235,36 @@ class TestPanelData(ZiplineTestCase):
                                  2, history_freq).iloc[0]
                 )
 
+        def daily_history(algo, data):
+            if algo.get_datetime().date() == end_dt.date():
+                history_record[:] = data.history(algo.equities,
+                                                 aggregator_fields, 2, '1d')
+
         def check_panels():
             np.testing.assert_array_equal(
                 price_record.values.astype('float64'),
                 panel.loc[:, :, ['close',
                                  'prev_close']].values.astype('float64')
             )
+            if data_frequency == 'minute':
+                history_key = pd.Panel(items=aggregator_fields,
+                                       major_axis=range(2),
+                                       minor_axis=sids)
+                history_key.loc[:, 0] = aggregate(minutes_by_session[-2])
+                history_key.loc[:, 1] = aggregate(minutes_by_session[-1][:60])
+
+                np.testing.assert_array_equal(
+                    history_record,
+                    history_key
+                )
+
+        def aggregate(minutes):
+            data = panel.loc[:, minutes]
+            result = pd.DataFrame()
+            result['high'] = data.loc[:, :, 'high'].max(axis=0)
+            result['close'] = data.loc[:, :, 'close'].iloc[-1]
+            result['volume'] = data.loc[:, :, 'volume'].sum(axis=0)
+            return result
 
         trading_algo = TradingAlgorithm(initialize=initialize,
                                         handle_data=handle_data)

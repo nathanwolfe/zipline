@@ -37,6 +37,7 @@ from six import (
 from zipline._protocol import handle_non_market_minutes
 from zipline.assets.synthetic import make_simple_equity_info
 from zipline.data.data_portal import DataPortal
+from zipline.data.resample import MinuteResampleSessionBarReader
 from zipline.data.us_equity_pricing import PanelBarReader
 from zipline.errors import (
     AttachPipelineAfterInitialize,
@@ -660,21 +661,27 @@ class TradingAlgorithm(object):
                     )
                 )
 
-                if self.sim_params.data_frequency == 'daily':
-                    equity_reader_arg = 'equity_daily_reader'
-                elif self.sim_params.data_frequency == 'minute':
-                    equity_reader_arg = 'equity_minute_reader'
                 equity_reader = PanelBarReader(
                     self.trading_calendar,
                     copy_panel,
                     self.sim_params.data_frequency,
                 )
+                if self.sim_params.data_frequency == 'daily':
+                    equity_daily_reader = equity_reader
+                    equity_minute_reader = None
+                elif self.sim_params.data_frequency == 'minute':
+                    equity_daily_reader = MinuteResampleSessionBarReader(
+                        self.trading_calendar,
+                        equity_reader
+                    )
+                    equity_minute_reader = equity_reader
 
                 self.data_portal = DataPortal(
                     self.asset_finder,
                     self.trading_calendar,
                     first_trading_day=equity_reader.first_trading_day,
-                    **{equity_reader_arg: equity_reader}
+                    equity_daily_reader=equity_daily_reader,
+                    equity_minute_reader=equity_minute_reader,
                 )
 
         # Force a reset of the performance tracker, in case
